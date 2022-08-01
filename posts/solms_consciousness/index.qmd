@@ -3,9 +3,9 @@ title: "A book I'd say everyone should read if that were a kind of thing I'd say
 author: "Sigrid Keydana"
 date: "2022-08-01"
 categories: [Books, Philosophy (sort of)]
-image: tbd.jpg
+image: polar.jpg
 description: >
-  Much as we humans like to believe, consciousness is not a neocortex thing, a matter of analysis and meta-analysis. Instead -- says Mark Solms, in his 2021 *The Hidden Spring: A Journey to the Source of Consciousness* -- consciousness is all about feeling. A claim that, if we take it seriously (and I don't see why we shouldn't) has far-ranging consequences.
+  Much as we humans like to believe, consciousness is not a neocortex thing, a matter of analysis and meta-analysis. Instead -- says Mark Solms, in his 2021 *The Hidden Spring: A Journey to the Source of Consciousness* -- instead, consciousness is all about feeling. A claim that, if we take it seriously (and I don't see why we shouldn't) has far-ranging consequences.
 ---
 
 A few years ago, I found myself wanting to learn and, maybe, try to make up my mind, about a topic I -- surprisingly -- never had given much thought to, before: consciousness.
@@ -71,3 +71,7 @@ First -- and here, again, I have to stress that I am not a neuroscientist, and t
 Secondly, I cannot *not* mention I have significant problems with how the book ends: the announcement that Solms and his group will try to engineer artificial consciousness. The arguments in favor are all too familiar: We need to do this to prove our scientific hypothesis; if we don't do it, someone else will; we'll patent the whole process; and as soon as it's done (hypothesis confirmed), we'll shut it off. Oh brave new world ...
 
 Those are comments I felt I needed to make, but neither takes away anything from the fact that, yes, this book is eminently important, and that yes, we, human beings, animals, earth all need that revolution to happen.
+
+
+Photo by <a href="https://unsplash.com/@hansjurgen007?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Hans-Jurgen Mager</a> on <a href="https://unsplash.com/?utm_source=unsplash&utm_medium=referral&utm_content=creditCopyText">Unsplash</a>
+  

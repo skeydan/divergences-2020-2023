@@ -8,7 +8,7 @@ website:
       - about.qmd
 format:
   html:
-    theme: minty
+    theme: pulse
     css: styles.css
 
 editor: visual
