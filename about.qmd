@@ -6,6 +6,6 @@ about:
 
 This is the personal blog of [Sigrid Keydana](https://twitter.com/zkajdan).
 
-I work at [RStudio, PBC](https://rstudio.com/), where I write for the [RStudio AI blog](https://blogs.rstudio.com/ai/).
+I work at [Posit, PBC](https://posit.co/), where I write for the [RStudio AI blog](https://blogs.rstudio.com/ai/).
 
 Opinions are exclusively mine.
