@@ -1,5 +1,5 @@
 ---
-title: "A book I'd say everyone should read if that were a kind of thing I'd say"
+title: "A book I'd say everyone should read if such were a kind of thing I'd say"
 author: "Sigrid Keydana"
 date: "2022-08-01"
 categories: [Books, Philosophy (sort of)]
