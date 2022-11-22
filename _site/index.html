@@ -11,10 +11,15 @@
 <style>
 code{white-space: pre-wrap;}
 span.smallcaps{font-variant: small-caps;}
-span.underline{text-decoration: underline;}
-div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
 div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
 </style>
 
 
@@ -35,7 +40,7 @@ ul.task-list{list-style: none;}
 <link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
 <script src="site_libs/bootstrap/bootstrap.min.js"></script>
 <link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
-<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
 <script id="quarto-search-options" type="application/json">{
   "location": "navbar",
   "copy-button": false,
@@ -96,9 +101,11 @@ ul.task-list{list-style: none;}
   <header id="quarto-header" class="headroom fixed-top">
     <nav class="navbar navbar-expand-lg navbar-dark ">
       <div class="navbar-container container-fluid">
-      <a class="navbar-brand" href="./index.html">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="./index.html">
     <span class="navbar-title">divergences</span>
-  </a>
+    </a>
+  </div>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
@@ -134,7 +141,7 @@ ul.task-list{list-style: none;}
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         
-    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(3)</span></div><div class="category" data-category="AI and Society">AI and Society <span class="quarto-category-count">(1)</span></div><div class="category" data-category="AI ethics">AI ethics <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Books">Books <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Philosophy (sort of)">Philosophy (sort of) <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Privacy">Privacy <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Social Credit">Social Credit <span class="quarto-category-count">(1)</span></div></div></div>
+    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(4)</span></div><div class="category" data-category="AI societal impact">AI societal impact <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Books">Books <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Deep Learning">Deep Learning <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Philosophy (sort of)">Philosophy (sort of) <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Privacy">Privacy <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Social Credit">Social Credit <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Technical">Technical <span class="quarto-category-count">(1)</span></div></div></div>
 <!-- main -->
 <main class="content quarto-banner-title-block column-page-left" id="quarto-document-content">
 
@@ -147,7 +154,45 @@ ul.task-list{list-style: none;}
 
 <div class="quarto-listing quarto-listing-container-default" id="listing-listing">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="Books,Philosophy (sort of)" data-listing-date-sort="1659304800000" data-listing-file-modified-sort="1659421437146" data-listing-reading-time-sort="8.395">
+<div class="quarto-post image-right" data-index="0" data-categories="Technical,Deep Learning" data-listing-date-sort="1669071600000" data-listing-file-modified-sort="1669130357768" data-listing-reading-time-sort="23.035">
+<div class="thumbnail">
+<p><a href="./posts/graphdl/index.html"> <img src="./posts/graphdl/net.jpg" class="thumnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/graphdl/index.html">
+<h3 class="no-anchor listing-title">
+Getting started with deep learning on graphs
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Technical'); return false;">
+Technical
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/graphdl/index.html">
+<div class="listing-description">
+<p>This post introduces deep learning on graphs by mapping its central concept - message passing - to minimal usage patterns of PyTorch Geometric’s foundation-laying MessagePassing class. Exploring those patterns, we gain some basic, very concrete insights into how graph DL works.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/graphdl/index.html">
+<div class="listing-date">
+Nov 22, 2022
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="1" data-categories="Books,Philosophy (sort of)" data-listing-date-sort="1659304800000" data-listing-file-modified-sort="1659421437146" data-listing-reading-time-sort="8.395">
 <div class="thumbnail">
 <p><a href="./posts/solms_consciousness/index.html"> <img src="./posts/solms_consciousness/polar.jpg" class="thumnail-image"> </a></p>
 </div>
@@ -185,7 +230,7 @@ Sigrid Keydana
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="1" data-categories="AI ethics,AI and Society" data-listing-date-sort="1600725600000" data-listing-file-modified-sort="1651653605406" data-listing-reading-time-sort="15.945">
+<div class="quarto-post image-right" data-index="2" data-categories="AI societal impact" data-listing-date-sort="1600725600000" data-listing-file-modified-sort="1669130447241" data-listing-reading-time-sort="15.94">
 <div class="thumbnail">
 <p><a href="./posts/ai_ethics_optimization_problem/index.html"> <img src="./posts/ai_ethics_optimization_problem/raven.jpg" class="thumnail-image"> </a></p>
 </div>
@@ -199,11 +244,8 @@ AI ethics is not an optimization problem
 </div>
 </a>
 <div class="listing-categories">
-<div class="listing-category" onclick="window.quartoListingCategory('AI ethics'); return false;">
-AI ethics
-</div>
-<div class="listing-category" onclick="window.quartoListingCategory('AI and Society'); return false;">
-AI and Society
+<div class="listing-category" onclick="window.quartoListingCategory('AI societal impact'); return false;">
+AI societal impact
 </div>
 </div>
 <a href="./posts/ai_ethics_optimization_problem/index.html">
@@ -223,7 +265,7 @@ Sigrid Keydana
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="2" data-categories="Privacy,Social Credit" data-listing-date-sort="1582758000000" data-listing-file-modified-sort="1651653605415" data-listing-reading-time-sort="12.455">
+<div class="quarto-post image-right" data-index="3" data-categories="Privacy,Social Credit" data-listing-date-sort="1582758000000" data-listing-file-modified-sort="1651653605415" data-listing-reading-time-sort="12.455">
 <div class="thumbnail">
 <p><a href="./posts/hard_problem_privacy/index.html"> <img src="./posts/hard_problem_privacy/kitten.jpg" class="thumnail-image"> </a></p>
 </div>
@@ -268,6 +310,24 @@ No matching items
 </div></main> <!-- /main -->
 <script id="quarto-html-after-body" type="application/javascript">
 window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
   const icon = "";
   const anchorJS = new window.AnchorJS();
   anchorJS.options = {
@@ -317,7 +377,8 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
   for (var i=0; i<noterefs.length; i++) {
     const ref = noterefs[i];
     tippyHover(ref, function() {
-      let href = ref.getAttribute('href');
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
       try { href = new URL(href).hash; } catch {}
       const id = href.replace(/^#\/?/, "");
       const note = window.document.getElementById(id);

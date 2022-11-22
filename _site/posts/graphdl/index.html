@@ -1,0 +1,749 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-99.9.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sigrid Keydana">
+<meta name="dcterms.date" content="2022-11-22">
+<meta name="description" content="This post introduces deep learning on graphs by mapping its central concept - message passing - to minimal usage patterns of PyTorch Geometric’s foundation-laying MessagePassing class. Exploring those patterns, we gain some basic, very concrete insights into how graph DL works.">
+
+<title>divergences - Getting started with deep learning on graphs</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1.6em;
+  vertical-align: middle;
+}
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+    color: #aaaaaa;
+  }
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } /* Alert */
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } /* Annotation */
+code span.at { color: #7d9029; } /* Attribute */
+code span.bn { color: #40a070; } /* BaseN */
+code span.bu { color: #008000; } /* BuiltIn */
+code span.cf { color: #007020; font-weight: bold; } /* ControlFlow */
+code span.ch { color: #4070a0; } /* Char */
+code span.cn { color: #880000; } /* Constant */
+code span.co { color: #60a0b0; font-style: italic; } /* Comment */
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } /* CommentVar */
+code span.do { color: #ba2121; font-style: italic; } /* Documentation */
+code span.dt { color: #902000; } /* DataType */
+code span.dv { color: #40a070; } /* DecVal */
+code span.er { color: #ff0000; font-weight: bold; } /* Error */
+code span.ex { } /* Extension */
+code span.fl { color: #40a070; } /* Float */
+code span.fu { color: #06287e; } /* Function */
+code span.im { color: #008000; font-weight: bold; } /* Import */
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } /* Information */
+code span.kw { color: #007020; font-weight: bold; } /* Keyword */
+code span.op { color: #666666; } /* Operator */
+code span.ot { color: #007020; } /* Other */
+code span.pp { color: #bc7a00; } /* Preprocessor */
+code span.sc { color: #4070a0; } /* SpecialChar */
+code span.ss { color: #bb6688; } /* SpecialString */
+code span.st { color: #4070a0; } /* String */
+code span.va { color: #19177c; } /* Variable */
+code span.vs { color: #4070a0; } /* VerbatimString */
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } /* Warning */
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">divergences</span>
+    </a>
+  </div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html">About</a>
+  </li>  
+</ul>
+              <div id="quarto-search" class="" title="Search"></div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Getting started with deep learning on graphs</h1>
+                  <div>
+        <div class="description">
+          <p>This post introduces deep learning on graphs by mapping its central concept - message passing - to minimal usage patterns of PyTorch Geometric’s foundation-laying MessagePassing class. Exploring those patterns, we gain some basic, very concrete insights into how graph DL works.</p>
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">Technical</div>
+                <div class="quarto-category">Deep Learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Sigrid Keydana </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">November 22, 2022</p>
+      </div>
+    </div>
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>If, in deep-learning world, the first half of the last decade has been the age of images, and the second, that of language, one could say that now, we’re living in the age of graphs. At least, that’s what commonly cited research metrics suggest. But as we’re all aware, deep-learning research is anything but an ivory tower. To see real-world implications, it suffices to reflect on how many things can be modeled as graphs. Some things quite naturally “are” graphs, in the sense of having nodes and edges: neurons, underground stations, social networks. Other things can fruitfully be modeled as graphs: molecules, for example; or language, concepts, three-dimensional shapes … If deep learning on graphs is desirable, what are the challenges, and what do we get for free?</p>
+<section id="whats-so-special-about-deep-learning-on-graphs" class="level2">
+<h2 class="anchored" data-anchor-id="whats-so-special-about-deep-learning-on-graphs">What’s so special about deep learning on graphs?</h2>
+<p>Graphs are different from images, language, as well as tabular data in that node numbering does not matter. In other words, graphs are permutation-invariant. Already this means that architectures established in other domains cannot be transferred verbatim. (The <em>ideas</em> underlying them can be transferred though. Thus, in the graph neural network (henceforth: GNN) model zoo you’ll see lots of allusions to “convolutional”, “attention”, and other established terms.) Put very simply, and in concordance with common sense, whatever algorithm is used, it will fundamentally be based on how nodes are connected: the edges, that is.</p>
+<p>When relationships are modeled as graphs, both nodes and edges can have features. This, too, adds complexity. But not everything is harder with graphs. Think of how cumbersome it can be to obtain labeled data for supervised learning. With graphs, often an astonishingly small amount of labeled data is needed. More surprisingly still, a graph can be constructed when not a single edge is present. Put differently, learning on <em>sets</em> can morph into learning on <em>graphs</em>.</p>
+<p>At this point, let me switch gears and move on to the practical part: the raison d’être of this post.</p>
+</section>
+<section id="matching-concepts-and-code-pytorch-geometric" class="level2">
+<h2 class="anchored" data-anchor-id="matching-concepts-and-code-pytorch-geometric">Matching concepts and code: PyTorch Geometric</h2>
+<p>In this (and future) posts, we’ll make use of <a href="https://pytorch-geometric.readthedocs.io/en/latest/#">PyTorch Geometric</a> (from hereon: PyG), the most popular, at this time, and fastest-growing in terms of functionality as well as user base, library dedicated to graph DL.</p>
+<p>Deep learning on graphs, in its most general form, is usually characterized by the term <em>message passing</em>. Messages are passed between nodes that are linked by an edge: If node <span class="math inline">\(A\)</span> has three neighbors, it will receive three messages. Those messages have to be summarized in some meaningful way. Finally – GNNs consisting of consecutive layers – the node will have to decide how to modify its previous-layer features (a.k.a. embeddings) based on that summary.</p>
+<p>Together, these make up a three-step sequence: collect messages; aggegate; update. What about the “learning” in deep learning, though? There are two places where learning can happen: Firstly, in message collection: Incoming messages could be transformed by a MLP, for example. Secondly, as part of the update step. All in all, this yields mathematical formulae like this, given in the PyG documentation:</p>
+<p><span class="math display">\[
+\mathbf{x}_i^{(k)} = \gamma^{(k)} \left( \mathbf{x}_i^{(k-1)}, \square_{j \in \mathcal{N}(i)} \, \phi^{(k)}\left(\mathbf{x}_i^{(k-1)}, \mathbf{x}_j^{(k-1)},\mathbf{e}_{j,i}\right) \right)
+\]</span></p>
+<p>Scary though this looks, once we read it from the right, we see that it nicely fits the conceptual description. The <span class="math inline">\((\mathbf{x}_i^{(k-1)}, \mathbf{x}_j^{(k-1)},\mathbf{e}_{j,i})\)</span> are the three types of incoming messages a node can receive: its own state at the previous layer, the states of its neighbors (the nodes <span class="math inline">\(j \in \mathcal{N}(i)\)</span>) at the previous layer, and features/embeddings associated to the edge in question. (I’m leaving out edge features in this discussion completely, so as to not further enhance complexity.) These messages are (optionally) transformed by the neural network <span class="math inline">\(\phi\)</span>, and whatever comes out is summarized by the aggregator function <span class="math inline">\(\square\)</span>. Finally, a node will update itself based on that summary as well as its own previous-layer state, possibly by means of applying neural network <span class="math inline">\(\gamma\)</span>.</p>
+<p>Now that we have this conceptual/mathematical representation, how does it map to code we see, or would like to write? PyG has excellent, extensive documentation, including at the beginner level. But here, I’d like to spell things out in detail – pedantically, if you like, but in a way that tells us a lot about how GNNs work.</p>
+<p>Let’s start by the information given in one of the key documentation pages, <a href="https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html">Creating message passing networks</a>:</p>
+<blockquote class="blockquote">
+<p>PyG provides the <code>MessagePassing</code> base class, which helps in creating such kinds of message passing graph neural networks by automatically taking care of message propagation. The user only has to define the functions <span class="math inline">\(\phi\)</span>, i.e.&nbsp;<code>message()</code>, and <span class="math inline">\(\gamma\)</span>, i.e.&nbsp;<code>update()</code>, as well as the aggregation scheme to use, i.e.&nbsp;<code>aggr="add"</code>, <code>aggr="mean"</code> or <code>aggr="max"</code>.</p>
+</blockquote>
+<p>Scrolling down that page and looking at the two example implementations, however, we see that an implementation of <code>update()</code> does not have to be provided; and from inspecting the <a href="https://pytorch-geometric.readthedocs.io/en/latest/_modules/torch_geometric/nn/conv/message_passing.html#MessagePassing">source code</a>, it is clear that, technically, the same holds for <code>message()</code>. (And unless we want a form of aggregation different from the default <code>add</code>, we do not even need to specify that, either.)</p>
+<p>Thus, the question becomes: What happens if we code the <em>minimal PyG GNN</em>? To find out, we first need to create a minimal graph, one minimal enough for us to track what is going on.</p>
+<section id="a-minimal-graph" class="level3">
+<h3 class="anchored" data-anchor-id="a-minimal-graph">A minimal graph</h3>
+<p>Now, a basic <code>Data</code> object is created from three tensors. The first holds the node features: two features each for five nodes. (Both features are identical on purpose, for “cognitive ease” – on our, not the algorithm’s, part.)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>x <span class="op">=</span> torch.tensor([[<span class="dv">1</span>, <span class="dv">1</span>], [<span class="dv">2</span>, <span class="dv">2</span>], [<span class="dv">3</span>, <span class="dv">3</span>], [<span class="dv">11</span>, <span class="dv">11</span>], [<span class="dv">12</span>, <span class="dv">12</span>]], dtype<span class="op">=</span>torch.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The second specifies existing connections. For undirected graphs (like ours), each edge appears twice. The tensor you see here is specified in one-edge-per-line form for convenience reasons; to the <code>Data()</code> constructor we’ll pass its transpose instead.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>edge_index <span class="op">=</span> torch.tensor([</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">0</span>, <span class="dv">1</span>],</span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">1</span>, <span class="dv">0</span>],</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">0</span>, <span class="dv">2</span>],</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">2</span>, <span class="dv">0</span>],</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">1</span>, <span class="dv">2</span>],</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">2</span>, <span class="dv">1</span>],</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">2</span>, <span class="dv">3</span>],</span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">3</span>, <span class="dv">2</span>],</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">2</span>, <span class="dv">4</span>],</span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">4</span>, <span class="dv">2</span>],</span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">3</span>, <span class="dv">4</span>],</span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>  [<span class="dv">4</span>, <span class="dv">3</span>]</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>], dtype<span class="op">=</span>torch.<span class="bu">long</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The third tensor holds the node labels. (The task will be one of node – not edge, not graph – classification.)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>y <span class="op">=</span> torch.tensor([[<span class="dv">0</span>], [<span class="dv">0</span>], [<span class="dv">0</span>], [<span class="dv">1</span>], [<span class="dv">1</span>]], dtype<span class="op">=</span>torch.<span class="bu">float</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Constructing and inspecting the resulting graph, we have:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch_geometric.data <span class="im">import</span> Data</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>data <span class="op">=</span> Data(x <span class="op">=</span> x, edge_index <span class="op">=</span> edge_index.t().contiguous(), y <span class="op">=</span> y)</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>data.x</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>data.edge_index</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>data.y</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [11., 11.],
+        [12., 12.]])
+        
+tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
+        [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])
+        
+tensor([[0.],
+        [0.],
+        [0.],
+        [1.],
+        [1.]])</code></pre>
+<p>For our upcoming experiments, it’s more helpful, though, to visualize the graph:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> networkx <span class="im">as</span> nx</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> matplotlib.pyplot <span class="im">as</span> plt</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch_geometric.utils <span class="im">import</span> to_networkx</span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> visualize_graph(G, color, labels):</span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>    plt.figure(figsize<span class="op">=</span>(<span class="dv">7</span>,<span class="dv">7</span>))</span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>    plt.axis(<span class="st">'off'</span>)</span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a>    nx.draw_networkx(</span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a>      G,</span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a>      pos <span class="op">=</span> nx.spring_layout(G, seed <span class="op">=</span> <span class="dv">777</span>),</span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a>      labels <span class="op">=</span> labels,</span>
+<span id="cb6-12"><a href="#cb6-12" aria-hidden="true" tabindex="-1"></a>      node_color <span class="op">=</span> color,</span>
+<span id="cb6-13"><a href="#cb6-13" aria-hidden="true" tabindex="-1"></a>      cmap <span class="op">=</span> <span class="st">"Set3"</span></span>
+<span id="cb6-14"><a href="#cb6-14" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb6-15"><a href="#cb6-15" aria-hidden="true" tabindex="-1"></a>    plt.show()</span>
+<span id="cb6-16"><a href="#cb6-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-17"><a href="#cb6-17" aria-hidden="true" tabindex="-1"></a>G <span class="op">=</span> to_networkx(data, to_undirected <span class="op">=</span> <span class="va">True</span>, node_attrs <span class="op">=</span> [<span class="st">"x"</span>])</span>
+<span id="cb6-18"><a href="#cb6-18" aria-hidden="true" tabindex="-1"></a>labels <span class="op">=</span> nx.get_node_attributes(G, <span class="st">"x"</span>)</span>
+<span id="cb6-19"><a href="#cb6-19" aria-hidden="true" tabindex="-1"></a>visualize_graph(G, color <span class="op">=</span> data.y, labels <span class="op">=</span> labels)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><img src="graph.png" class="img-fluid"></p>
+<p>Although our experiments won’t be about training performance (how could they be, with just five nodes), let me remark in passing that this graph is small, but not boring: The middle node is equally connected to both “sides”, yet feature-wise, it would pretty clearly appear to belong on just one of them. (Which is true, given the provided class labels). Such a constellation is interesting because, in the majority of networks, edges indicate similarity.</p>
+</section>
+<section id="a-minimal-gnn" class="level3">
+<h3 class="anchored" data-anchor-id="a-minimal-gnn">A minimal GNN</h3>
+<p>Now, we code and run the minimal GNN. We’re not interested in class labels (yet); we just want to see each node’s embeddings after a single pass.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch_geometric.nn <span class="im">import</span> MessagePassing</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IAmLazy(MessagePassing):</span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index, x <span class="op">=</span> x)</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb7-8"><a href="#cb7-8" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> IAmLazy()</span>
+<span id="cb7-9"><a href="#cb7-9" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb7-10"><a href="#cb7-10" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[ 5.,  5.],
+        [ 4.,  4.],
+        [26., 26.],
+        [15., 15.],
+        [14., 14.]])</code></pre>
+<p>Evidently, we just had to start the process – but what process, exactly? From what we know about the three stages of message passing, an essential question is what nodes do with the information that flows over the edges. Our first experiment, then, is to inspect the incoming messages.</p>
+</section>
+<section id="poking-into-message" class="level3">
+<h3 class="anchored" data-anchor-id="poking-into-message">Poking into <code>message()</code></h3>
+<p>In <code>message()</code>, we have access to a structure named <code>x_j</code>. This tensor holds, for each node <span class="math inline">\(i\)</span>, the embeddings of all nodes <span class="math inline">\(j\)</span> connected to it via incoming edges. We’ll print them, and then, just return them, unchanged.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IAmMyOthers(MessagePassing):</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index, x <span class="op">=</span> x)</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> message(<span class="va">self</span>, x_j):</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in message, x_j is"</span>)</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(x_j)</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> x_j</span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> IAmMyOthers()</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>in message, x_j is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])
+        
+result is:
+tensor([[ 5.,  5.],
+        [ 4.,  4.],
+        [26., 26.],
+        [15., 15.],
+        [14., 14.]])</code></pre>
+<p>Let me spell this out. In <code>data.edge_index</code>, repeated here for convenience:</p>
+<pre><code>tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
+        [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])</code></pre>
+<p>the first pair denotes the edge from node <code>0</code> (that had features <code>(1, 1)</code>) to node <code>1</code>. This information is found in <code>x_j</code>’s first row. Then the second row holds the information flowing in the opposite direction, namely, the features associated with node <code>1</code>. And so on.</p>
+<p>Interestingly, since we’re passing through this module just once, we can see the messages that will be sent without even running it.</p>
+<p>Namely, since <code>data.edge_index[0]</code> designates the <em>source</em> nodes for each edge:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>data.edge_index[<span class="dv">0</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>we can index <code>into data.x</code> to pick up what will be the <em>incoming</em> features for each connection.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>data.x[data.edge_index[<span class="dv">0</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])</code></pre>
+<p>Now, what does this tell us? Node <code>0</code>, for example, received messages from nodes <code>1</code> and <code>2</code>: <code>(2, 2)</code> and <code>(3, 3)</code>, respectively. We know that the default aggregation mode is <code>add</code>; and so, would expect an outcome of <code>(5, 5)</code>. Indeed, this is the new embedding for node <code>0</code>.</p>
+<p>In a nutshell, thus, the minimal GNN updates every node’s embedding so as to prototypically reflect the node’s neighborhood. Take care though: Nodes represent their neighborhoods, but themselves, they count for nothing. We will change that now.</p>
+</section>
+<section id="adding-self-loops" class="level3">
+<h3 class="anchored" data-anchor-id="adding-self-loops">Adding self loops</h3>
+<p>All we need to do is modify the adjacency matrix to include edges going from each node back to itself.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch_geometric.utils <span class="im">import</span> add_self_loops</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IAmMyOthersAndMyselfAsWell(MessagePassing):</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>        edge_index, _ <span class="op">=</span> add_self_loops(edge_index, num_nodes <span class="op">=</span> x.size(<span class="dv">0</span>))</span>
+<span id="cb15-6"><a href="#cb15-6" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in forward, augmented edge index now has shape"</span>)</span>
+<span id="cb15-7"><a href="#cb15-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(edge_index.shape)</span>
+<span id="cb15-8"><a href="#cb15-8" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index, x <span class="op">=</span> x)</span>
+<span id="cb15-9"><a href="#cb15-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb15-10"><a href="#cb15-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> message(<span class="va">self</span>, x_j):</span>
+<span id="cb15-11"><a href="#cb15-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> x_j</span>
+<span id="cb15-12"><a href="#cb15-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb15-13"><a href="#cb15-13" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> IAmMyOthersAndMyselfAsWell()</span>
+<span id="cb15-14"><a href="#cb15-14" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb15-15"><a href="#cb15-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb15-16"><a href="#cb15-16" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>in forward, augmented edge index now has shape:
+torch.Size([2, 17])
+
+result is:
+tensor([[ 6.,  6.],
+        [ 6.,  6.],
+        [29., 29.],
+        [26., 26.],
+        [26., 26.]])</code></pre>
+<p>As expected, the neighborhood summary at each node now includes a contribution from each node itself.</p>
+<p>Now we know how to access the messages, we’d like to aggregate them in a non-standard way.</p>
+</section>
+<section id="customizing-aggregate" class="level3">
+<h3 class="anchored" data-anchor-id="customizing-aggregate">Customizing <code>aggregate()</code></h3>
+<p>Instead of <code>message()</code>, we now override <code>aggregate()</code>. If we wanted to use another of the “standard” aggregation modes (<code>mean</code>, <code>mul</code>, <code>min</code>, or <code>max</code>), we could just override <code>__init__(),</code> like so:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>):</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>(aggr <span class="op">=</span> <span class="st">"mean"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>To implement custom summaries, however, we make use of <code>torch_scatter</code> (one of PyG’s installation prerequisites) for optimal performance. Let me show this by means of a simple example.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch_scatter <span class="im">import</span> scatter</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IAmJustTheOppositeReally(MessagePassing):</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index, x <span class="op">=</span> x)</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> aggregate(<span class="va">self</span>, inputs, index):</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in aggregate, inputs is"</span>)</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>        <span class="co"># same as x_j (incoming node features)</span></span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(inputs)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in aggregate, index is"</span>)</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>        <span class="co"># this is data.edge_index[1]</span></span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(index)</span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>        <span class="co"># see https://pytorch-scatter.readthedocs.io/en/1.3.0/index.html</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>        <span class="co"># for other aggregation modes</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>        <span class="co"># default dim is -1</span></span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="op">-</span> scatter(inputs, index, dim <span class="op">=</span> <span class="dv">0</span>, <span class="bu">reduce</span> <span class="op">=</span> <span class="st">"add"</span>) </span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> IAmJustTheOppositeReally()</span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>in aggregate, inputs is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])
+        
+in aggregate, index is
+tensor([1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3])
+
+result is:
+tensor([[ -5.,  -5.],
+        [ -4.,  -4.],
+        [-26., -26.],
+        [-15., -15.],
+        [-14., -14.]])</code></pre>
+<p>In <code>aggregate()</code>, we have two types of tensors to work with. One, <code>inputs</code>, holds what was returned from <code>message()</code>. In our case, this is identical to <code>x_j</code>, since we didn’t make any modifications to the default behavior. The second, <code>index</code>, holds the recipe for where in the aggregation those features should go. Here, the very first tuple, <code>(1, 1)</code>, will contribute to the summary for node <code>1</code>; the second, <code>(2, 2)</code>, to that for node <code>0</code> – and so on. By the way, just like <code>x_j</code> (in a single-layer, single-pass setup) is “just” <code>data.x[data.edge_index[0]]</code>, that <code>index</code> is “just” <code>data.edge_index[1]</code>. Meaning, this is the list of target nodes connected to the edges in question.</p>
+<p>At this point, all kinds of manipulations could be done on either <code>inputs</code> or <code>index</code>; however, we content ourselves with just passing them through to <code>torch_scatter.scatter()</code>, and returning the negated sums. We’ve successfully built a network of contrarians.</p>
+<p>By now, we’ve played with <code>message()</code> as well as <code>aggregate()</code>. What about <code>update()</code>?</p>
+</section>
+<section id="adding-memory-to-update" class="level3">
+<h3 class="anchored" data-anchor-id="adding-memory-to-update">Adding memory to <code>update()</code></h3>
+<p>There’s one thing really strange in what we’re doing. It doesn’t jump to the eye, since we’re not simulating a real training phase; we’ve been calling the layer just once. If we hadn’t, we’d have noticed that at every call, the nodes happily forget who they were before, dutifully assuming the new identities assigned. In reality, we probably want them to evolve in a more consistent way.</p>
+<p>For example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> IDoEvolveOverTime(MessagePassing):</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>        edge_index, _ <span class="op">=</span> add_self_loops(edge_index, num_nodes<span class="op">=</span>x.size(<span class="dv">0</span>))</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index, x <span class="op">=</span> x)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, inputs, x):</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in update, inputs is"</span>)</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(inputs)</span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(<span class="st">"in update, x is"</span>)</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>        <span class="bu">print</span>(x)</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (inputs <span class="op">+</span> x)<span class="op">/</span><span class="dv">2</span></span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> IDoEvolveOverTime()</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>in update, inputs is
+tensor([[ 6.,  6.],
+        [ 6.,  6.],
+        [29., 29.],
+        [26., 26.],
+        [26., 26.]])
+in update, x is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [11., 11.],
+        [12., 12.]])
+result is:
+tensor([[ 3.5000,  3.5000],
+        [ 4.0000,  4.0000],
+        [16.0000, 16.0000],
+        [18.5000, 18.5000],
+        [19.0000, 19.0000]])</code></pre>
+<p>In <code>update()</code>, we have access to both the final message aggregate (<code>inputs</code>) and the nodes’ prior states (<code>x</code>). Here, I’m just averaging those two.</p>
+<p>At this point, we’ve successfully acquainted ourselves with the three stages of message passing: acting on individual messages, aggregating them, and self-updating based on past state and new information. But none of our models so far could be called a neural network, since there was no learning involved.</p>
+</section>
+<section id="adding-parameters" class="level3">
+<h3 class="anchored" data-anchor-id="adding-parameters">Adding parameters</h3>
+<p>If we look back at the generic message passing formulation:</p>
+<p><span class="math display">\[
+\mathbf{x}_i^{(k)} = \gamma^{(k)} \left( \mathbf{x}_i^{(k-1)}, \square_{j \in \mathcal{N}(i)} \, \phi^{(k)}\left(\mathbf{x}_i^{(k-1)}, \mathbf{x}_j^{(k-1)},\mathbf{e}_{j,i}\right) \right)
+\]</span> we see two places where neural network modules can act on the computation: before message aggregation, and as part of the node update process. First, we illustrate the former option. For example, we can apply a MLP in <code>forward()</code>, before the call to <code>aggregate()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="im">from</span> torch.nn <span class="im">import</span> Sequential <span class="im">as</span> Seq, Linear, ReLU</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ILearnAndEvolve(MessagePassing):</span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, in_channels, out_channels):</span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>(aggr <span class="op">=</span> <span class="st">"sum"</span>)</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.mlp <span class="op">=</span> Seq(Linear(in_channels, out_channels),</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a>                       ReLU(),</span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a>                       Linear(out_channels, out_channels))</span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a>        edge_index, _ <span class="op">=</span> add_self_loops(edge_index, num_nodes<span class="op">=</span>x.size(<span class="dv">0</span>))</span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> <span class="va">self</span>.mlp(x)</span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index <span class="op">=</span> edge_index, x <span class="op">=</span> x)</span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, inputs, x):</span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> (inputs <span class="op">+</span> x)<span class="op">/</span><span class="dv">2</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> ILearnAndEvolve(<span class="dv">2</span>, <span class="dv">2</span>)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>result is:
+tensor([[-0.8724, -0.4407],
+        [-0.9056, -0.4623],
+        [-2.0229, -1.1240],
+        [-1.8691, -1.0867],
+        [-1.9024, -1.1082]], grad_fn=&lt;DivBackward0&gt;)</code></pre>
+<p>Finally, we can apply network modules in both places, as exemplified next.</p>
+</section>
+<section id="general-message-passing" class="level3">
+<h3 class="anchored" data-anchor-id="general-message-passing">General message passing</h3>
+<p>We keep the MLP from the previous class, and add a second in <code>update()</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> ILearnAndEvolveDoubly(MessagePassing):</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, in_channels, out_channels):</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>(aggr <span class="op">=</span> <span class="st">"sum"</span>)</span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.mlp_msg <span class="op">=</span> Seq(Linear(in_channels, out_channels),</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>                       ReLU(),</span>
+<span id="cb24-6"><a href="#cb24-6" aria-hidden="true" tabindex="-1"></a>                       Linear(out_channels, out_channels))</span>
+<span id="cb24-7"><a href="#cb24-7" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.mlp_upd <span class="op">=</span> Seq(Linear(out_channels, out_channels),</span>
+<span id="cb24-8"><a href="#cb24-8" aria-hidden="true" tabindex="-1"></a>                       ReLU(),</span>
+<span id="cb24-9"><a href="#cb24-9" aria-hidden="true" tabindex="-1"></a>                       Linear(out_channels, out_channels))</span>
+<span id="cb24-10"><a href="#cb24-10" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb24-11"><a href="#cb24-11" aria-hidden="true" tabindex="-1"></a>        edge_index, _ <span class="op">=</span> add_self_loops(edge_index, num_nodes<span class="op">=</span>x.size(<span class="dv">0</span>))</span>
+<span id="cb24-12"><a href="#cb24-12" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> <span class="va">self</span>.mlp_msg(x)</span>
+<span id="cb24-13"><a href="#cb24-13" aria-hidden="true" tabindex="-1"></a>        out <span class="op">=</span> <span class="va">self</span>.propagate(edge_index <span class="op">=</span> edge_index, x <span class="op">=</span> x)</span>
+<span id="cb24-14"><a href="#cb24-14" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> out</span>
+<span id="cb24-15"><a href="#cb24-15" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> update(<span class="va">self</span>, inputs, x):</span>
+<span id="cb24-16"><a href="#cb24-16" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.mlp_upd((inputs <span class="op">+</span> x)<span class="op">/</span><span class="dv">2</span>)</span>
+<span id="cb24-17"><a href="#cb24-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-18"><a href="#cb24-18" aria-hidden="true" tabindex="-1"></a>module <span class="op">=</span> ILearnAndEvolveDoubly(<span class="dv">2</span>, <span class="dv">2</span>)</span>
+<span id="cb24-19"><a href="#cb24-19" aria-hidden="true" tabindex="-1"></a>out <span class="op">=</span> module(data.x, data.edge_index)</span>
+<span id="cb24-20"><a href="#cb24-20" aria-hidden="true" tabindex="-1"></a><span class="bu">print</span>(<span class="st">"result is:"</span>)</span>
+<span id="cb24-21"><a href="#cb24-21" aria-hidden="true" tabindex="-1"></a>out</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>result is:
+tensor([[ 0.0573, -0.6988],
+        [ 0.0358, -0.6894],
+        [-0.1730, -0.6450],
+        [-0.5855, -0.4171],
+        [-0.5890, -0.4141]], grad_fn=&lt;AddmmBackward0&gt;)</code></pre>
+<p>At this point, I hope you’ll feel comfortable to play around, subclassing the <code>MessagePassing</code> base class. Also, if now you consult the above-mentioned documentation page (<a href="https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html">Creating message passing networks</a>), you’ll be able to map the example implementations (dedicated to popular GNN layer types) to where they “hook into” the message passing process.</p>
+<p>Experimentation with <code>MessagePassing</code> was the point of this post. However, you may be wondering: How do I actually use this for node classification? Didn’t the graph have a class defined for each node? (It did: <code>data.y</code>.)</p>
+<p>So let me conclude with a (minimal) end-to-end example that uses one of the above modules.</p>
+</section>
+<section id="a-minimal-workflow" class="level3">
+<h3 class="anchored" data-anchor-id="a-minimal-workflow">A minimal workflow</h3>
+<p>To that purpose, we compose that module with a linear one that performs node classification:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="kw">class</span> Network(torch.nn.Module):</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> <span class="fu">__init__</span>(<span class="va">self</span>, in_channels, out_channels, num_classes):</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>        <span class="bu">super</span>().<span class="fu">__init__</span>()</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.conv <span class="op">=</span> ILearnAndEvolveDoubly(in_channels, out_channels)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>        <span class="va">self</span>.classifier <span class="op">=</span> Linear(out_channels, num_classes)</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>    <span class="kw">def</span> forward(<span class="va">self</span>, x, edge_index):</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>        x, edge_index <span class="op">=</span> data.x, data.edge_index</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>        x <span class="op">=</span> <span class="va">self</span>.conv(x, edge_index)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>        <span class="cf">return</span> <span class="va">self</span>.classifier(x)</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>model <span class="op">=</span> Network(<span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">1</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We can then train the model like any other:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode python code-with-copy"><code class="sourceCode python"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a><span class="im">import</span> torch.nn.functional <span class="im">as</span> F</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>optimizer <span class="op">=</span> torch.optim.Adam(model.parameters(), lr <span class="op">=</span> <span class="fl">0.01</span>)</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>model.train()</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> epoch <span class="kw">in</span> <span class="bu">range</span>(<span class="dv">5</span>):</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    optimizer.zero_grad()</span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    out <span class="op">=</span> model(data.x, data.edge_index)</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    loss <span class="op">=</span> F.binary_cross_entropy_with_logits(out, data.y)</span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    loss.backward()</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>    optimizer.step()</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>preds <span class="op">=</span> torch.sigmoid(out)</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>preds</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[0.6502],
+        [0.6532],
+        [0.7027],
+        [0.7145],
+        [0.7165]], grad_fn=&lt;SigmoidBackward0&gt;)</code></pre>
+<p>And that’s it for this time. Stay tuned for examples of how graph models are applied in the sciences, as well as illustrations of bleeding-edge developments in <a href="https://blogs.rstudio.com/ai/posts/2021-08-26-geometric-deep-learning/">Geometric Deep Learning</a>, the principles-based, heuristics-transcending approach to neural networks.</p>
+<p>Thanks for reading!</p>
+<p>Photo by <a href="https://unsplash.com/@alinnnaaaa?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Alina Grubnyak</a> on <a href="https://unsplash.com/?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Unsplash</a></p>
+
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    target: function(trigger) {
+      return trigger.previousElementSibling;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    setTimeout(function() {
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
+    tippyHover(ref, function() {
+      var popup = window.document.createElement('div');
+      cites.forEach(function(cite) {
+        var citeDiv = window.document.createElement('div');
+        citeDiv.classList.add('hanging-indent');
+        citeDiv.classList.add('csl-entry');
+        var biblioDiv = window.document.getElementById('ref-' + cite);
+        if (biblioDiv) {
+          citeDiv.innerHTML = biblioDiv.innerHTML;
+        }
+        popup.appendChild(citeDiv);
+      });
+      return popup.innerHTML;
+    });
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

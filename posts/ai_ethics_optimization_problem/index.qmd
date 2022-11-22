@@ -2,7 +2,7 @@
 title: "AI ethics is not an optimization problem"
 author: "Sigrid Keydana"
 date: "2020-09-22"
-categories: [AI ethics, AI and Society]
+categories: [AI societal impact]
 image: raven.jpg
 description: >
   Often, AI researchers and engineers think of themselves as neutral and "objective", operating in a framework of strict formalization. Fairness and absence of bias, however, are social constructs; there is no objectivity, no LaTeX-typesettable remedies, no algorithmic way out. AI models are developed based on a history and deployed in a context. In AI as in data science, the very absence of action can be of political significance.
@@ -94,7 +94,7 @@ If even numbers, once used in communication, lose their objectivity, this must h
 
 That book is also an exemplary exercise in what appears like the only way to "deal with" the fact that objectivity is impossible: Trying to be as clear as possible about where we stand, who we are, what are the circumstances that have influenced our way of thinking. Of course, like with the unspoken premises and assumptions discussed above, this is not easy; in fact, it's impossible to do in perfection. But one can try.
 
-In fact, the above "Trying to be as clear as possible ... " is deliberately ambiguous. It refers to two things: For one, to *me* striving to analyze how I'm privileged, and secondly, to me giving information to *others*. The first alone is laudable but necessarily limited; the second, as exercised by d'Ignazio and Klein, opens the door not just for better mutual understanding, but also, for feedback and learning. The person I'm talking to might lead me to insights I wouldn't have gotten otherwise.
+In fact, the above "Trying to be as clear as possible ..." is deliberately ambiguous. It refers to two things: For one, to *me* striving to analyze how I'm privileged, and secondly, to me giving information to *others*. The first alone is laudable but necessarily limited; the second, as exercised by d'Ignazio and Klein, opens the door not just for better mutual understanding, but also, for feedback and learning. The person I'm talking to might lead me to insights I wouldn't have gotten otherwise.
 
 Putting things slightly differently, there is no objectivity because there's always a context. Focus on metrics and formalization detract from that context. Green [relates](https://dl.acm.org/doi/10.1145/3351095.3372840) an interesting parallel from American law history. Until the early twentieth century, US law was dominated by a formalist ethos. Ideally, all rules should be traceable to a small number of universal principles, derived from natural rights. Autonomy being such a right, in a famous 1905 case, the U.S. Supreme Court concluded that a law limiting the working hours of employees represented "unreasonable, unnecessary and arbitrary interference with the right and liberty of the individual to contract". [However](https://dl.acm.org/doi/10.1145/3351095.3372840),
 
