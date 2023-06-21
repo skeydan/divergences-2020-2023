@@ -17,7 +17,7 @@ div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
 ul.task-list{list-style: none;}
 ul.task-list li input[type="checkbox"] {
   width: 0.8em;
-  margin: 0 0.8em 0.2em -1.6em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
   vertical-align: middle;
 }
 </style>
@@ -90,6 +90,7 @@ ul.task-list li input[type="checkbox"] {
   })
   </script>
 
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
   <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
 
 <link rel="stylesheet" href="styles.css">
@@ -106,16 +107,19 @@ ul.task-list li input[type="checkbox"] {
     <span class="navbar-title">divergences</span>
     </a>
   </div>
+            <div id="quarto-search" class="" title="Search"></div>
           <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
   <span class="navbar-toggler-icon"></span>
 </button>
           <div class="collapse navbar-collapse" id="navbarCollapse">
             <ul class="navbar-nav navbar-nav-scroll ms-auto">
   <li class="nav-item">
-    <a class="nav-link" href="./about.html">About</a>
+    <a class="nav-link" href="./about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
   </li>  
 </ul>
-              <div id="quarto-search" class="" title="Search"></div>
+            <div class="quarto-navbar-tools">
+</div>
           </div> <!-- /navcollapse -->
       </div> <!-- /container-fluid -->
     </nav>
@@ -132,6 +136,7 @@ ul.task-list li input[type="checkbox"] {
   <div class="quarto-title-meta">
 
       
+    
       
     </div>
     
@@ -141,7 +146,7 @@ ul.task-list li input[type="checkbox"] {
 <!-- margin-sidebar -->
     <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
         
-    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(4)</span></div><div class="category" data-category="AI societal impact">AI societal impact <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Books">Books <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Deep Learning">Deep Learning <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Philosophy (sort of)">Philosophy (sort of) <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Privacy">Privacy <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Social Credit">Social Credit <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Technical">Technical <span class="quarto-category-count">(1)</span></div></div></div>
+    <h5 class="quarto-listing-category-title">Categories</h5><div class="quarto-listing-category category-default"><div class="category" data-category="">All <span class="quarto-category-count">(14)</span></div><div class="category" data-category="AI Societal Impact">AI Societal Impact <span class="quarto-category-count">(3)</span></div><div class="category" data-category="Books">Books <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Deep Learning">Deep Learning <span class="quarto-category-count">(11)</span></div><div class="category" data-category="Dissecting the Hype">Dissecting the Hype <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Geometric Deep Learning">Geometric Deep Learning <span class="quarto-category-count">(4)</span></div><div class="category" data-category="Philosophy (sort of)">Philosophy (sort of) <span class="quarto-category-count">(2)</span></div><div class="category" data-category="Privacy">Privacy <span class="quarto-category-count">(1)</span></div><div class="category" data-category="Social Credit">Social Credit <span class="quarto-category-count">(1)</span></div></div></div>
 <!-- main -->
 <main class="content quarto-banner-title-block column-page-left" id="quarto-document-content">
 
@@ -154,9 +159,240 @@ ul.task-list li input[type="checkbox"] {
 
 <div class="quarto-listing quarto-listing-container-default" id="listing-listing">
 <div class="list quarto-listing-default">
-<div class="quarto-post image-right" data-index="0" data-categories="Technical,Deep Learning" data-listing-date-sort="1669071600000" data-listing-file-modified-sort="1669130357768" data-listing-reading-time-sort="23.035">
+<div class="quarto-post image-right" data-index="0" data-categories="Deep Learning,AI Societal Impact,Philosophy (sort of),Dissecting the Hype" data-listing-date-sort="1687212000000" data-listing-file-modified-sort="1687362467825" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="24">
 <div class="thumbnail">
-<p><a href="./posts/graphdl/index.html"> <img src="./posts/graphdl/net.jpg" class="thumnail-image"> </a></p>
+<p><a href="./posts/llm-intro/index.html"> <img src="./posts/llm-intro/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/llm-intro/index.html">
+<h3 class="no-anchor listing-title">
+What are Large Language Models? What are they not?
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('AI Societal Impact'); return false;">
+AI Societal Impact
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Philosophy (sort of)'); return false;">
+Philosophy (sort of)
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Dissecting the Hype'); return false;">
+Dissecting the Hype
+</div>
+</div>
+<a href="./posts/llm-intro/index.html">
+<div class="listing-description">
+<p>This is a high-level, introductory article about Large Language Models (LLMs), the core technology that enables the much-en-vogue chatbots as well as other Natural Language Processing (NLP) applications. It is directed at a general audience, possibly with some technical and/or scientific background, but no knowledge is assumed of either deep learning or NLP. Having looked at major model ingredients, training workflow, and mechanics of output generation, we also talk about what these models are not.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/llm-intro/index.html">
+<div class="listing-date">
+Jun 20, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="1" data-categories="Deep Learning,Geometric Deep Learning" data-listing-date-sort="1683583200000" data-listing-file-modified-sort="1687361737036" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="19">
+<div class="thumbnail">
+<p><a href="./posts/group-equivariant-cnn-3/index.html"> <img src="./posts/group-equivariant-cnn-3/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/group-equivariant-cnn-3/index.html">
+<h3 class="no-anchor listing-title">
+Group-equivariant neural networks with escnn
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Geometric Deep Learning'); return false;">
+Geometric Deep Learning
+</div>
+</div>
+<a href="./posts/group-equivariant-cnn-3/index.html">
+<div class="listing-description">
+<p>Escnn, built on PyTorch, is a library that, in the spirit of Geometric Deep Learning, provides a high-level interface to designing and training group-equivariant neural networks. This post introduces important mathematical concepts, the library’s key actors, and essential library use.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/group-equivariant-cnn-3/index.html">
+<div class="listing-date">
+May 9, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="2" data-categories="Books,Deep Learning" data-listing-date-sort="1680645600000" data-listing-file-modified-sort="1687254220039" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="4">
+<div class="thumbnail">
+<p><a href="./posts/deep-learning-scientific-computing-R-torch/index.html"> <img src="./posts/deep-learning-scientific-computing-R-torch/book.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/deep-learning-scientific-computing-R-torch/index.html">
+<h3 class="no-anchor listing-title">
+Deep Learning and Scientific Computing with R torch: the book
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Books'); return false;">
+Books
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/deep-learning-scientific-computing-R-torch/index.html">
+<div class="listing-description">
+<p>Much as we humans like to believe, consciousness is not a neocortex thing, a matter of analysis and meta-analysis. Instead – says Mark Solms, in his 2021 <em>The Hidden Spring: A Journey to the Source of Consciousness</em> – instead, consciousness is all about feeling. A claim that, if we take it seriously (and I don’t see why we shouldn’t) has far-ranging consequences.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/deep-learning-scientific-computing-R-torch/index.html">
+<div class="listing-date">
+Apr 5, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="3" data-categories="Deep Learning,Geometric Deep Learning" data-listing-date-sort="1679868000000" data-listing-file-modified-sort="1687361535589" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="14">
+<div class="thumbnail">
+<p><a href="./posts/group-equivariant-cnn-2/index.html"> <img src="./posts/group-equivariant-cnn-2/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/group-equivariant-cnn-2/index.html">
+<h3 class="no-anchor listing-title">
+Implementing rotation equivariance: Group-equivariant CNN from scratch
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Geometric Deep Learning'); return false;">
+Geometric Deep Learning
+</div>
+</div>
+<a href="./posts/group-equivariant-cnn-2/index.html">
+<div class="listing-description">
+<p>We code up a simple group-equivariant convolutional neural network (GCNN) that is equivariant to rotation. The world may be upside down, but the network will know.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/group-equivariant-cnn-2/index.html">
+<div class="listing-date">
+Mar 27, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="4" data-categories="Deep Learning,Geometric Deep Learning" data-listing-date-sort="1678316400000" data-listing-file-modified-sort="1687360327312" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="10">
+<div class="thumbnail">
+<p><a href="./posts/group-equivariant-cnn-1/index.html"> <img src="./posts/group-equivariant-cnn-1/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/group-equivariant-cnn-1/index.html">
+<h3 class="no-anchor listing-title">
+Upside down, a cat’s still a cat: Evolving image recognition with Geometric Deep Learning
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Geometric Deep Learning'); return false;">
+Geometric Deep Learning
+</div>
+</div>
+<a href="./posts/group-equivariant-cnn-1/index.html">
+<div class="listing-description">
+<p>In this first in a series of posts on group-equivariant convolutional neural networks (GCNNs), meet the main actors — groups — and concepts (equivariance). With GCNNs, we finally revisit the topic of Geometric Deep Learning, a principled, math-driven approach to neural networks that has consistently been rising in scope and impact.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/group-equivariant-cnn-1/index.html">
+<div class="listing-date">
+Mar 9, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="5" data-categories="Deep Learning" data-listing-date-sort="1674082800000" data-listing-file-modified-sort="1687358095971" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="23">
+<div class="thumbnail">
+<p><a href="./posts/torchwavelets/index.html"> <img src="./posts/torchwavelets/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/torchwavelets/index.html">
+<h3 class="no-anchor listing-title">
+AO, NAO, ENSO: A wavelet analysis example
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/torchwavelets/index.html">
+<div class="listing-description">
+<p>El Niño-Southern Oscillation (ENSO), North Atlantic Oscillation (NAO), and Arctic Oscillation (AO) are atmospheric phenomena of global impact that strongly affect people’s lives. ENSO, first and foremost, brings with it floods, droughts, and ensuing poverty, in developing countries in the Southern Hemisphere. Here, we use the new torchwavelets package to comparatively inspect patterns in the three series.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/torchwavelets/index.html">
+<div class="listing-date">
+Jan 19, 2023
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="6" data-categories="Deep Learning" data-listing-date-sort="1669071600000" data-listing-file-modified-sort="1687254035241" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="22">
+<div class="thumbnail">
+<p><a href="./posts/graphdl/index.html"> <img src="./posts/graphdl/net.jpg" class="thumbnail-image"> </a></p>
 </div>
 <div class="body">
 <a href="./posts/graphdl/index.html">
@@ -168,9 +404,6 @@ Getting started with deep learning on graphs
 </div>
 </a>
 <div class="listing-categories">
-<div class="listing-category" onclick="window.quartoListingCategory('Technical'); return false;">
-Technical
-</div>
 <div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
 Deep Learning
 </div>
@@ -192,9 +425,9 @@ Sigrid Keydana
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="1" data-categories="Books,Philosophy (sort of)" data-listing-date-sort="1659304800000" data-listing-file-modified-sort="1659421437146" data-listing-reading-time-sort="8.395">
+<div class="quarto-post image-right" data-index="7" data-categories="Books,Philosophy (sort of)" data-listing-date-sort="1659304800000" data-listing-file-modified-sort="1669132698868" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="9">
 <div class="thumbnail">
-<p><a href="./posts/solms_consciousness/index.html"> <img src="./posts/solms_consciousness/polar.jpg" class="thumnail-image"> </a></p>
+<p><a href="./posts/solms_consciousness/index.html"> <img src="./posts/solms_consciousness/polar.jpg" class="thumbnail-image"> </a></p>
 </div>
 <div class="body">
 <a href="./posts/solms_consciousness/index.html">
@@ -230,9 +463,155 @@ Sigrid Keydana
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="2" data-categories="AI societal impact" data-listing-date-sort="1600725600000" data-listing-file-modified-sort="1669130447241" data-listing-reading-time-sort="15.94">
+<div class="quarto-post image-right" data-index="8" data-categories="Deep Learning" data-listing-date-sort="1643756400000" data-listing-file-modified-sort="1687271049870" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="29">
 <div class="thumbnail">
-<p><a href="./posts/ai_ethics_optimization_problem/index.html"> <img src="./posts/ai_ethics_optimization_problem/raven.jpg" class="thumnail-image"> </a></p>
+<p><a href="./posts/enso-prediction/index.html"> <img src="./posts/enso-prediction/pic.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/enso-prediction/index.html">
+<h3 class="no-anchor listing-title">
+Forecasting El Niño-Southern Oscillation (ENSO)
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/enso-prediction/index.html">
+<div class="listing-description">
+<p>El Niño-Southern Oscillation (ENSO) is an atmospheric phenomenon, located in the tropical Pacific, that greatly affects ecosystems as well as human well-being on a large portion of the globe. We use the convLSTM introduced in a prior post to predict the Niño 3.4 Index from spatially-ordered sequences of sea surface temperatures.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/enso-prediction/index.html">
+<div class="listing-date">
+Feb 2, 2022
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="9" data-categories="Deep Learning,Geometric Deep Learning" data-listing-date-sort="1629928800000" data-listing-file-modified-sort="1687290226872" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="13">
+<div class="thumbnail">
+<p><a href="./posts/geometric-deep-learning/index.html"> <img src="./posts/geometric-deep-learning/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/geometric-deep-learning/index.html">
+<h3 class="no-anchor listing-title">
+Beyond alchemy: A first look at geometric deep learning
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Geometric Deep Learning'); return false;">
+Geometric Deep Learning
+</div>
+</div>
+<a href="./posts/geometric-deep-learning/index.html">
+<div class="listing-description">
+<p>Geometric deep learning is a “program” that aspires to situate deep learning architectures and techniques in a framework of mathematical priors. The priors, such as various types of invariance, first arise in some physical domain. A neural network that well matches the domain will preserve as many invariances as possible. In this post, we present a very conceptual, high-level overview, and highlight a few applications.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/geometric-deep-learning/index.html">
+<div class="listing-date">
+Aug 26, 2021
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="10" data-categories="AI Societal Impact,Deep Learning" data-listing-date-sort="1626300000000" data-listing-file-modified-sort="1687250966267" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="22">
+<div class="thumbnail">
+<p><a href="./posts/ai-fairness/index.html"> <img src="./posts/ai-fairness/preview.jpg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/ai-fairness/index.html">
+<h3 class="no-anchor listing-title">
+Starting to think about AI Fairness
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('AI Societal Impact'); return false;">
+AI Societal Impact
+</div>
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/ai-fairness/index.html">
+<div class="listing-description">
+<p>The topic of AI fairness metrics is as important to society as it is confusing. Confusing it is due to a number of reasons: terminological proliferation, abundance of formulae, and last not least the impression that everyone else seems to know what they’re talking about. This text hopes to counteract some of that confusion by starting from a common-sense approach of contrasting two basic positions: On the one hand, the assumption that dataset features may be taken as reflecting the underlying concepts ML practitioners are interested in; on the other, that there inevitably is a gap between concept and measurement, a gap that may be bigger or smaller depending on what is being measured. In contrasting these fundamental views, we bring together concepts from ML, legal science, and political philosophy.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/ai-fairness/index.html">
+<div class="listing-date">
+Jul 15, 2021
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="11" data-categories="Deep Learning" data-listing-date-sort="1608159600000" data-listing-file-modified-sort="1687359541193" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="35">
+<div class="thumbnail">
+<p><a href="./posts/torch-convlstm/index.html"> <img src="./posts/torch-convlstm/preview.jpeg" class="thumbnail-image"> </a></p>
+</div>
+<div class="body">
+<a href="./posts/torch-convlstm/index.html">
+<h3 class="no-anchor listing-title">
+Convolutional LSTM for spatial forecasting
+</h3>
+<div class="listing-subtitle">
+
+</div>
+</a>
+<div class="listing-categories">
+<div class="listing-category" onclick="window.quartoListingCategory('Deep Learning'); return false;">
+Deep Learning
+</div>
+</div>
+<a href="./posts/torch-convlstm/index.html">
+<div class="listing-description">
+<p>In forecasting spatially-determined phenomena (the weather, say, or the next frame in a movie), we want to model temporal evolution, ideally using recurrence relations. At the same time, we’d like to efficiently extract spatial features, something that is normally done with convolutional filters. Ideally then, we’d have at our disposal an architecture that is both recurrent and convolutional. In this post, we build a convolutional LSTM with torch.</p>
+</div>
+</a>
+</div>
+<div class="metadata">
+<a href="./posts/torch-convlstm/index.html">
+<div class="listing-date">
+Dec 17, 2020
+</div>
+<div class="listing-author">
+Sigrid Keydana
+</div>
+</a>
+</div>
+</div>
+<div class="quarto-post image-right" data-index="12" data-categories="AI Societal Impact" data-listing-date-sort="1600725600000" data-listing-file-modified-sort="1687249170335" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="16">
+<div class="thumbnail">
+<p><a href="./posts/ai_ethics_optimization_problem/index.html"> <img src="./posts/ai_ethics_optimization_problem/raven.jpg" class="thumbnail-image"> </a></p>
 </div>
 <div class="body">
 <a href="./posts/ai_ethics_optimization_problem/index.html">
@@ -244,8 +623,8 @@ AI ethics is not an optimization problem
 </div>
 </a>
 <div class="listing-categories">
-<div class="listing-category" onclick="window.quartoListingCategory('AI societal impact'); return false;">
-AI societal impact
+<div class="listing-category" onclick="window.quartoListingCategory('AI Societal Impact'); return false;">
+AI Societal Impact
 </div>
 </div>
 <a href="./posts/ai_ethics_optimization_problem/index.html">
@@ -265,9 +644,9 @@ Sigrid Keydana
 </a>
 </div>
 </div>
-<div class="quarto-post image-right" data-index="3" data-categories="Privacy,Social Credit" data-listing-date-sort="1582758000000" data-listing-file-modified-sort="1651653605415" data-listing-reading-time-sort="12.455">
+<div class="quarto-post image-right" data-index="13" data-categories="Privacy,Social Credit" data-listing-date-sort="1582758000000" data-listing-file-modified-sort="1651653605415" data-listing-date-modified-sort="NaN" data-listing-reading-time-sort="13">
 <div class="thumbnail">
-<p><a href="./posts/hard_problem_privacy/index.html"> <img src="./posts/hard_problem_privacy/kitten.jpg" class="thumnail-image"> </a></p>
+<p><a href="./posts/hard_problem_privacy/index.html"> <img src="./posts/hard_problem_privacy/kitten.jpg" class="thumbnail-image"> </a></p>
 </div>
 <div class="body">
 <a href="./posts/hard_problem_privacy/index.html">
@@ -335,9 +714,23 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     icon: icon
   };
   anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
   const clipboard = new window.ClipboardJS('.code-copy-button', {
-    target: function(trigger) {
-      return trigger.previousElementSibling;
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
     }
   });
   clipboard.on('success', function(e) {
@@ -349,7 +742,24 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
     button.classList.add('code-copy-button-checked');
     var currentTitle = button.getAttribute("title");
     button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
     setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
       button.setAttribute("title", currentTitle);
       button.classList.remove('code-copy-button-checked');
     }, 1000);
@@ -385,24 +795,128 @@ window.document.addEventListener("DOMContentLoaded", function (event) {
       return note.innerHTML;
     });
   }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
   var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
   for (var i=0; i<bibliorefs.length; i++) {
     const ref = bibliorefs[i];
-    const cites = ref.parentNode.getAttribute('data-cites').split(' ');
-    tippyHover(ref, function() {
-      var popup = window.document.createElement('div');
-      cites.forEach(function(cite) {
-        var citeDiv = window.document.createElement('div');
-        citeDiv.classList.add('hanging-indent');
-        citeDiv.classList.add('csl-entry');
-        var biblioDiv = window.document.getElementById('ref-' + cite);
-        if (biblioDiv) {
-          citeDiv.innerHTML = biblioDiv.innerHTML;
-        }
-        popup.appendChild(citeDiv);
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
       });
-      return popup.innerHTML;
-    });
+    }
   }
 });
 </script>

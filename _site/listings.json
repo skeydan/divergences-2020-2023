@@ -2,8 +2,18 @@
   {
     "listing": "/index.html",
     "items": [
+      "/posts/llm-intro/index.html",
+      "/posts/group-equivariant-cnn-3/index.html",
+      "/posts/deep-learning-scientific-computing-R-torch/index.html",
+      "/posts/group-equivariant-cnn-2/index.html",
+      "/posts/group-equivariant-cnn-1/index.html",
+      "/posts/torchwavelets/index.html",
       "/posts/graphdl/index.html",
       "/posts/solms_consciousness/index.html",
+      "/posts/enso-prediction/index.html",
+      "/posts/geometric-deep-learning/index.html",
+      "/posts/ai-fairness/index.html",
+      "/posts/torch-convlstm/index.html",
       "/posts/ai_ethics_optimization_problem/index.html",
       "/posts/hard_problem_privacy/index.html"
     ]

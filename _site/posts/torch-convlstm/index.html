@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-99.9.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sigrid Keydana">
+<meta name="dcterms.date" content="2020-12-17">
+<meta name="description" content="In forecasting spatially-determined phenomena (the weather, say, or the next frame in a movie), we want to model temporal evolution, ideally using recurrence relations. At the same time, we’d like to efficiently extract spatial features, something that is normally done with convolutional filters. Ideally then, we’d have at our disposal an architecture that is both recurrent and convolutional. In this post, we build a convolutional LSTM with torch.">
+
+<title>divergences - Convolutional LSTM for spatial forecasting</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">divergences</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Convolutional LSTM for spatial forecasting</h1>
+                  <div>
+        <div class="description">
+          <p>In forecasting spatially-determined phenomena (the weather, say, or the next frame in a movie), we want to model temporal evolution, ideally using recurrence relations. At the same time, we’d like to efficiently extract spatial features, something that is normally done with convolutional filters. Ideally then, we’d have at our disposal an architecture that is both recurrent and convolutional. In this post, we build a convolutional LSTM with torch.</p>
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">Deep Learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Sigrid Keydana </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">December 17, 2020</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>This post is the first in a loose series exploring forecasting of spatially-determined data over time. By spatially-determined I mean that whatever the quantities we’re trying to predict – be they univariate or multivariate time series, of spatial dimensionality or not – the <em>input</em> data are given on a spatial grid.</p>
+<p>For example, the input could be atmospheric measurements, such as sea surface temperature or pressure, given at some set of latitudes and longitudes. The target to be predicted could then span that same (or another) grid. Alternatively, it could be a univariate time series, like a meteorological index.</p>
+<p>But wait a second, you may be thinking. For time-series prediction, we have that time-honored set of recurrent architectures (e.g., LSTM, GRU), right? Right. We do; but, once we feed spatial data to an RNN, treating different locations as different input features, we lose an essential structural relationship. Importantly, we need to operate in both space and time. We want both: recurrence relations and convolutional filters. Enter <em>convolutional RNNs</em>.</p>
+<section id="what-to-expect-from-this-post" class="level2">
+<h2 class="anchored" data-anchor-id="what-to-expect-from-this-post">What to expect from this post</h2>
+<p>Today, we won’t jump into real-world applications just yet. Instead, we’ll take our time to build a convolutional LSTM (henceforth: convLSTM) in <code>torch</code>. For one, we have to – there is no official PyTorch implementation.</p>
+<p>(Keras, on the other hand, has one. If you’re interested in quickly playing around with a Keras convLSTM, check out <a href="https://tensorflow.rstudio.com/guide/keras/examples/conv_lstm/">this nice example</a>.)</p>
+<p>What’s more, this post can serve as an introduction to building your own modules. This is something you may be familiar with from Keras or not – depending on whether you’ve used custom models or rather, preferred the declarative <em>define -&gt; compile -&gt; fit</em> style. (Yes, I’m implying there’s some transfer going on if one comes to <code>torch</code> from Keras custom training. Syntactic and semantic details may be different, but both share the object-oriented style that allows for great flexibility and control.)</p>
+<p>Last but not least, we’ll also use this as a hands-on experience with RNN architectures (the LSTM, specifically). While the general concept of recurrence may be easy to grasp, it is not necessarily self-evident how those architectures should, or could, be coded. Personally, I find that independent of the framework used, RNN-related documentation leaves me confused. What exactly <em>is</em> being returned from calling an LSTM, or a GRU? (In Keras this depends on how you’ve defined the layer in question.) I suspect that once we’ve decided what we <em>want</em> to return, the actual code won’t be that complicated. Consequently, we’ll take a detour clarifying what it is that <code>torch</code> and Keras are giving us. Implementing our convLSTM will be a lot more straightforward thereafter.</p>
+</section>
+<section id="a-torch-convlstm" class="level2">
+<h2 class="anchored" data-anchor-id="a-torch-convlstm">A <code>torch</code> convLSTM</h2>
+<p>The code discussed here may be found on <a href="https://github.com/skeydan/convlstm">GitHub</a>. (Depending on when you’re reading this, the code in that repository may have evolved though.)</p>
+<p>My starting point was one of the PyTorch implementations found on the net, namely, <a href="https://github.com/ndrplz/ConvLSTM_pytorch/blob/master/convlstm.py">this one</a>. If you search for “PyTorch convGRU” or “PyTorch convLSTM”, you will find stunning discrepancies in how these are realized – discrepancies not just in syntax and/or engineering ambition, but on the semantic level, right at the center of what the architectures may be expected to do. As they say, let the buyer beware. (Regarding the implementation I ended up porting, I am confident that while numerous optimizations will be possible, the basic mechanism matches my expectations.)</p>
+<p>What do I expect? Let’s approach this task in a top-down way.</p>
+<section id="input-and-output" class="level3">
+<h3 class="anchored" data-anchor-id="input-and-output">Input and output</h3>
+<p>The convLSTM’s input will be a time series of spatial data, each observation being of size <code>(time steps, channels, height, width)</code>.</p>
+<p>Compare this with the usual RNN input format, be it in <code>torch</code> or Keras. In both frameworks, RNNs expect tensors of size <code>(timesteps, input_dim)</code><a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. <code>input_dim</code> is <span class="math inline">\(1\)</span> for univariate time series and greater than <span class="math inline">\(1\)</span> for multivariate ones. Conceptually, we may match this to convLSTM’s <code>channels</code> dimension: There could be a single channel, for temperature, say – or there could be several, such as for pressure, temperature, and humidity. The two additional dimensions found in convLSTM, <code>height</code> and <code>width</code>, are spatial indexes into the data.</p>
+<p>In sum, we want to be able to pass data that:</p>
+<ul>
+<li><p>consist of one or more features,</p></li>
+<li><p>evolve in time, and</p></li>
+<li><p>are indexed in two spatial dimensions.</p></li>
+</ul>
+<p>How about the output? We want to be able to return forecasts for as many time steps as we have in the input sequence. This is something that <code>torch</code> RNNs do by default, while Keras equivalents do not. (You have to pass <code>return_sequences = TRUE</code> to obtain that effect.) If we’re interested in predictions for just a single point in time, we can always pick the last time step in the output tensor.</p>
+<p>However, with RNNs, it is not all about outputs. RNN architectures also carry through hidden states.</p>
+<p>What are hidden states? I carefully phrased that sentence to be as general as possible – deliberately circling around the confusion that, in my view, often arises at this point. We’ll attempt to clear up some of that confusion in a second, but let’s first finish our high-level requirements specification.</p>
+<p>We want our convLSTM to be usable in different contexts and applications. Various architectures exist that make use of hidden states, most prominently perhaps, encoder-decoder architectures. Thus, we want our convLSTM to return those as well. Again, this is something a <code>torch</code> LSTM does by default, while in Keras it is achieved using <code>return_state = TRUE</code>.</p>
+<p>Now though, it really is time for that interlude. We’ll sort out the ways things are called by both <code>torch</code> and Keras, and inspect what you get back from their respective GRUs and LSTMs.</p>
+</section>
+<section id="interlude-outputs-states-hidden-values-whats-what" class="level3">
+<h3 class="anchored" data-anchor-id="interlude-outputs-states-hidden-values-whats-what">Interlude: Outputs, states, hidden values … what’s what?</h3>
+<p>For this to remain an interlude, I summarize findings on a high level. The code snippets in the appendix show how to arrive at these results. Heavily commented, they probe return values from both Keras and <code>torch</code> GRUs and LSTMs. Running these will make the upcoming summaries seem a lot less abstract.</p>
+<p>First, let’s look at the ways you create an LSTM in both frameworks. (I will generally use LSTM as the “prototypical RNN example”, and just mention GRUs when there are differences significant in the context in question.)</p>
+<p>In Keras, to create an LSTM you may write something like this:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">layer_lstm</span>(<span class="at">units =</span> <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The <code>torch</code> equivalent would be:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">nn_lstm</span>(</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">input_size =</span> <span class="dv">2</span>, <span class="co"># number of input features</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">hidden_size =</span> <span class="dv">1</span> <span class="co"># number of hidden (and output!) features</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Don’t focus on <code>torch</code>‘s <code>input_size</code> parameter for this discussion. (It’s the number of features in the input tensor.) The parallel occurs between Keras’ <code>units</code> and <code>torch</code>’s <code>hidden_size</code>. If you’ve been using Keras, you’re probably thinking of <code>units</code> as the thing that determines output size (equivalently, the number of features in the output). So when <code>torch</code> lets us arrive at the same result using <code>hidden_size</code>, what does that mean? It means that somehow we’re specifying the same thing, using different terminology. And it does make sense, since at every time step current input and previous hidden state are added<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>:</p>
+<p><span class="math display">\[
+\mathbf{h}_t = \mathbf{W}_{x}\mathbf{x}_t + \mathbf{W}_{h}\mathbf{h}_{t-1}
+\]</span></p>
+<p>Now, <em>about those hidden states</em>.</p>
+<p>When a Keras LSTM is defined with <code>return_state = TRUE</code>, its return value is a structure of three entities called output, memory state, and carry state. In <code>torch</code>, the same entities are referred to as output, hidden state, and cell state. (In <code>torch</code>, we always get all of them.)</p>
+<p>So are we dealing with three different types of entities? We are not.</p>
+<p>The cell, or carry state is that special thing that sets apart LSTMs from GRUs deemed responsible for the “long” in “long short-term memory”. Technically, it could be reported to the user at all points in time; as we’ll see shortly though, it is not.</p>
+<p>What about outputs and hidden, or memory states? Confusingly, these really are the same thing. Recall that for each input <em>item</em> in the input <em>sequence</em>, we’re combining it with the previous state, resulting in a new state, to be made used of in the next step<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>:</p>
+<p><span class="math display">\[
+\mathbf{h}_t = \mathbf{W}_{x}\mathbf{x}_t + \mathbf{W}_{h}\mathbf{h}_{t-1}
+\]</span></p>
+<p>Now, say that we’re interested in looking at just the final time step – that is, the default output of a Keras LSTM. From that point of view, we can consider those intermediate computations as “hidden”. Seen like that, output and hidden states feel different.</p>
+<p>However, we can also request to see the outputs for every time step. If we do so, there is no difference – the output<strong>s</strong> (plural) equal the hidden states. This can be verified using the code in the appendix.</p>
+<p>Thus, of the three things returned by an LSTM, two are really the same. How about the GRU, then? As there is no “cell state”, we really have just one type of thing left over – call it outputs or hidden states.</p>
+<p>Let’s summarize this in a table.</p>
+<p><br></p>
+<div class="l-page">
+<table class="table">
+<caption>Table 1: RNN terminology. Comparing torch-speak and Keras-speak. In row 1, the terms are parameter names. In rows 2 and 3, they are pulled from current documentation.</caption>
+<colgroup>
+<col style="width: 80%">
+<col style="width: 9%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Referring to this entity:</th>
+<th><code>torch</code> says:</th>
+<th>Keras says:</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><p><em>Number of features in the output</em></p>
+<p>This determines both how many output features there are <em>and</em> the dimensionality of the hidden states.</p></td>
+<td><code>hidden_size</code></td>
+<td><code>units</code></td>
+</tr>
+<tr class="even">
+<td><p><em>Per-time-step output; latent state; intermediate state …</em></p>
+<p>This could be named “public state” in the sense that we, the users, are able to obtain <em>all values.</em></p></td>
+<td>hidden state</td>
+<td>memory state</td>
+</tr>
+<tr class="odd">
+<td><p><em>Cell state; inner state … (LSTM only)</em></p>
+<p>This could be named “private state” in that we are able to obtain a value <em>only for the last time step</em>. More on that in a second.</p></td>
+<td>cell state</td>
+<td>carry state</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><br></p>
+<p>Now, about that public vs.&nbsp;private distinction. In both frameworks, we can obtain outputs (hidden states) for every time step. The cell state, however, we can access only for the very last time step. This is purely an implementation decision. As we’ll see when building our own recurrent module, there are no obstacles inherent in keeping track of cell states and passing them back to the user.</p>
+<p>If you dislike the pragmatism of this distinction, you can always go with the math. When a new cell state has been computed (based on prior cell state, input, forget, and cell gates – the specifics of which we are not going to get into here), it is transformed to the hidden (a.k.a. output) state making use of yet another, namely, the output gate:</p>
+<p><span class="math display">\[
+h_t = o_t \odot \tanh(c_t)
+\]</span></p>
+<p>Definitely, then, hidden state (output, resp.) builds on cell state, adding additional modeling power.</p>
+<p>Now it is time to get back to our original goal and build that convLSTM. First though, let’s summarize the return values obtainable from <code>torch</code> and Keras.</p>
+<p><br></p>
+<div class="l-page">
+<table class="table">
+<caption>Table 2: Contrasting ways of obtaining various return values in <code>torch</code> vs.&nbsp;Keras. Cf. the appendix for complete examples.</caption>
+<colgroup>
+<col style="width: 54%">
+<col style="width: 12%">
+<col style="width: 31%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>To achieve this goal:</th>
+<th>in <code>torch</code> do:</th>
+<th>in Keras do:</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>access all intermediate outputs ( = per-time-step outputs)</td>
+<td><code>ret[[1]]</code></td>
+<td><code>return_sequences = TRUE</code></td>
+</tr>
+<tr class="even">
+<td>access both “hidden state” (output) and “cell state” from final time step (only!)</td>
+<td><code>ret[[2]]</code></td>
+<td><code>return_state = TRUE</code></td>
+</tr>
+<tr class="odd">
+<td>access all intermediate outputs and the final “cell state”</td>
+<td>both of the above</td>
+<td><code>return_sequences = TRUE, return_state = TRUE</code></td>
+</tr>
+<tr class="even">
+<td>access all intermediate outputs and “cell states” from all time steps</td>
+<td>no way</td>
+<td>no way</td>
+</tr>
+</tbody>
+</table>
+</div>
+<p><br></p>
+</section>
+<section id="convlstm-the-plan" class="level3">
+<h3 class="anchored" data-anchor-id="convlstm-the-plan"><code>convLSTM</code>, the plan</h3>
+<p>In both <code>torch</code> and Keras RNN architectures, single time steps are processed by corresponding <code>Cell</code> classes: There is an LSTM Cell matching the LSTM, a GRU Cell matching the GRU, and so on. We do the same for ConvLSTM. In <code>convlstm_cell()</code>, we first define what should happen to a single observation; then in <code>convlstm()</code>, we build up the recurrence logic.</p>
+<p>Once we’re done, we create a dummy dataset, as reduced-to-the-essentials as can be. With more complex datasets, even artificial ones, chances are that if we don’t see any training progress, there are hundreds of possible explanations. We want a sanity check that, if failed, leaves no excuses. Realistic applications are left to future posts.</p>
+</section>
+<section id="a-single-step-convlstm_cell" class="level3">
+<h3 class="anchored" data-anchor-id="a-single-step-convlstm_cell">A single step: <code>convlstm_cell</code></h3>
+<p>Our <code>convlstm_cell</code>’s constructor takes arguments <code>input_dim</code> , <code>hidden_dim</code>, and <code>bias</code>, just like a <code>torch</code> LSTM Cell.</p>
+<p>But we’re processing two-dimensional input data. Instead of the usual affine combination of new input and previous state, we use a convolution of kernel size <code>kernel_size</code>. Inside <code>convlstm_cell</code>, it is <code>self$conv</code> that takes care of this.</p>
+<p>Note how the <code>channels</code> dimension, which in the original input data would correspond to different variables, is creatively used to consolidate four convolutions into one: Each channel output will be passed to just one of the four cell gates. Once in possession of the convolution output, <code>forward()</code> applies the gate logic, resulting in the two types of states it needs to send back to the caller.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(zeallot)</span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>convlstm_cell <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(input_dim, hidden_dim, kernel_size, bias) {</span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>hidden_dim <span class="ot">&lt;-</span> hidden_dim</span>
+<span id="cb3-9"><a href="#cb3-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-10"><a href="#cb3-10" aria-hidden="true" tabindex="-1"></a>    padding <span class="ot">&lt;-</span> kernel_size <span class="sc">%/%</span> <span class="dv">2</span></span>
+<span id="cb3-11"><a href="#cb3-11" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-12"><a href="#cb3-12" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>conv <span class="ot">&lt;-</span> <span class="fu">nn_conv2d</span>(</span>
+<span id="cb3-13"><a href="#cb3-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">in_channels =</span> input_dim <span class="sc">+</span> self<span class="sc">$</span>hidden_dim,</span>
+<span id="cb3-14"><a href="#cb3-14" aria-hidden="true" tabindex="-1"></a>      <span class="co"># for each of input, forget, output, and cell gates</span></span>
+<span id="cb3-15"><a href="#cb3-15" aria-hidden="true" tabindex="-1"></a>      <span class="at">out_channels =</span> <span class="dv">4</span> <span class="sc">*</span> self<span class="sc">$</span>hidden_dim,</span>
+<span id="cb3-16"><a href="#cb3-16" aria-hidden="true" tabindex="-1"></a>      <span class="at">kernel_size =</span> kernel_size,</span>
+<span id="cb3-17"><a href="#cb3-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">padding =</span> padding,</span>
+<span id="cb3-18"><a href="#cb3-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">bias =</span> bias</span>
+<span id="cb3-19"><a href="#cb3-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb3-20"><a href="#cb3-20" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb3-21"><a href="#cb3-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-22"><a href="#cb3-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">forward =</span> <span class="cf">function</span>(x, prev_states) {</span>
+<span id="cb3-23"><a href="#cb3-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-24"><a href="#cb3-24" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(h_prev, c_prev) <span class="sc">%&lt;-%</span> prev_states</span>
+<span id="cb3-25"><a href="#cb3-25" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-26"><a href="#cb3-26" aria-hidden="true" tabindex="-1"></a>    combined <span class="ot">&lt;-</span> <span class="fu">torch_cat</span>(<span class="fu">list</span>(x, h_prev), <span class="at">dim =</span> <span class="dv">2</span>)  <span class="co"># concatenate along channel axis</span></span>
+<span id="cb3-27"><a href="#cb3-27" aria-hidden="true" tabindex="-1"></a>    combined_conv <span class="ot">&lt;-</span> self<span class="sc">$</span><span class="fu">conv</span>(combined)</span>
+<span id="cb3-28"><a href="#cb3-28" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(cc_i, cc_f, cc_o, cc_g) <span class="sc">%&lt;-%</span> <span class="fu">torch_split</span>(combined_conv, self<span class="sc">$</span>hidden_dim, <span class="at">dim =</span> <span class="dv">2</span>)</span>
+<span id="cb3-29"><a href="#cb3-29" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-30"><a href="#cb3-30" aria-hidden="true" tabindex="-1"></a>    <span class="co"># input, forget, output, and cell gates (corresponding to torch's LSTM)</span></span>
+<span id="cb3-31"><a href="#cb3-31" aria-hidden="true" tabindex="-1"></a>    i <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_i)</span>
+<span id="cb3-32"><a href="#cb3-32" aria-hidden="true" tabindex="-1"></a>    f <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_f)</span>
+<span id="cb3-33"><a href="#cb3-33" aria-hidden="true" tabindex="-1"></a>    o <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_o)</span>
+<span id="cb3-34"><a href="#cb3-34" aria-hidden="true" tabindex="-1"></a>    g <span class="ot">&lt;-</span> <span class="fu">torch_tanh</span>(cc_g)</span>
+<span id="cb3-35"><a href="#cb3-35" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-36"><a href="#cb3-36" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cell state</span></span>
+<span id="cb3-37"><a href="#cb3-37" aria-hidden="true" tabindex="-1"></a>    c_next <span class="ot">&lt;-</span> f <span class="sc">*</span> c_prev <span class="sc">+</span> i <span class="sc">*</span> g</span>
+<span id="cb3-38"><a href="#cb3-38" aria-hidden="true" tabindex="-1"></a>    <span class="co"># hidden state</span></span>
+<span id="cb3-39"><a href="#cb3-39" aria-hidden="true" tabindex="-1"></a>    h_next <span class="ot">&lt;-</span> o <span class="sc">*</span> <span class="fu">torch_tanh</span>(c_next)</span>
+<span id="cb3-40"><a href="#cb3-40" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-41"><a href="#cb3-41" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(h_next, c_next)</span>
+<span id="cb3-42"><a href="#cb3-42" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb3-43"><a href="#cb3-43" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb3-44"><a href="#cb3-44" aria-hidden="true" tabindex="-1"></a>  <span class="at">init_hidden =</span> <span class="cf">function</span>(batch_size, height, width) {</span>
+<span id="cb3-45"><a href="#cb3-45" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb3-46"><a href="#cb3-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb3-47"><a href="#cb3-47" aria-hidden="true" tabindex="-1"></a>      <span class="fu">torch_zeros</span>(batch_size, self<span class="sc">$</span>hidden_dim, height, width, <span class="at">device =</span> self<span class="sc">$</span>conv<span class="sc">$</span>weight<span class="sc">$</span>device),</span>
+<span id="cb3-48"><a href="#cb3-48" aria-hidden="true" tabindex="-1"></a>      <span class="fu">torch_zeros</span>(batch_size, self<span class="sc">$</span>hidden_dim, height, width, <span class="at">device =</span> self<span class="sc">$</span>conv<span class="sc">$</span>weight<span class="sc">$</span>device))</span>
+<span id="cb3-49"><a href="#cb3-49" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb3-50"><a href="#cb3-50" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now <code>convlstm_cell</code> has to be called for every time step. This is done by <code>convlstm</code>.</p>
+</section>
+<section id="iteration-over-time-steps-convlstm" class="level3">
+<h3 class="anchored" data-anchor-id="iteration-over-time-steps-convlstm">Iteration over time steps: <code>convlstm</code></h3>
+<p>A <code>convlstm</code> may consist of several layers, just like a <code>torch</code> LSTM. For each layer, we are able to specify hidden and kernel sizes individually.</p>
+<p>During initialization, each layer gets its own <code>convlstm_cell</code>. On call, <code>convlstm</code> executes two loops. The outer one iterates over layers. At the end of each iteration, we store the final pair <code>(hidden state, cell state)</code> for later reporting. The inner loop runs over input sequences, calling <code>convlstm_cell</code> at each time step.</p>
+<p>We also keep track of intermediate outputs, so we’ll be able to return the complete list of <code>hidden_state</code>s seen during the process. Unlike a <code>torch</code> LSTM, we do this <em>for every layer</em>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>convlstm <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># hidden_dims and kernel_sizes are vectors, with one element for each layer in n_layers</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(input_dim, hidden_dims, kernel_sizes, n_layers, <span class="at">bias =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>n_layers <span class="ot">&lt;-</span> n_layers</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cell_list <span class="ot">&lt;-</span> <span class="fu">nn_module_list</span>()</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n_layers) {</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>      cur_input_dim <span class="ot">&lt;-</span> <span class="cf">if</span> (i <span class="sc">==</span> <span class="dv">1</span>) input_dim <span class="cf">else</span> hidden_dims[i <span class="sc">-</span> <span class="dv">1</span>]</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>      self<span class="sc">$</span>cell_list<span class="sc">$</span><span class="fu">append</span>(<span class="fu">convlstm_cell</span>(cur_input_dim, hidden_dims[i], kernel_sizes[i], bias))</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>  <span class="co"># we always assume batch-first</span></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">forward =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">c</span>(batch_size, seq_len, num_channels, height, width) <span class="sc">%&lt;-%</span> x<span class="sc">$</span><span class="fu">size</span>()</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>    <span class="co"># initialize hidden states</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>    init_hidden <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>self<span class="sc">$</span>n_layers) {</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>      init_hidden[[i]] <span class="ot">&lt;-</span> self<span class="sc">$</span>cell_list[[i]]<span class="sc">$</span><span class="fu">init_hidden</span>(batch_size, height, width)</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>    <span class="co"># list containing the outputs, of length seq_len, for each layer</span></span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>    <span class="co"># this is the same as h, at each step in the sequence</span></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>    layer_output_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>    <span class="co"># list containing the last states (h, c) for each layer</span></span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>    layer_state_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>    cur_layer_input <span class="ot">&lt;-</span> x</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>    hidden_states <span class="ot">&lt;-</span> init_hidden</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a>    <span class="co"># loop over layers</span></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>self<span class="sc">$</span>n_layers) {</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>      <span class="co"># every layer's hidden state starts from 0 (non-stateful)</span></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>      <span class="fu">c</span>(h, c) <span class="sc">%&lt;-%</span> hidden_states[[i]]</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>      <span class="co"># outputs, of length seq_len, for this layer</span></span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>      <span class="co"># equivalently, list of h states for each time step</span></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>      output_sequence <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> seq_len)</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>      <span class="co"># loop over time steps</span></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> (t <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>seq_len) {</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>        <span class="fu">c</span>(h, c) <span class="sc">%&lt;-%</span> self<span class="sc">$</span>cell_list[[i]](cur_layer_input[ , t, , , ], <span class="fu">list</span>(h, c))</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>        <span class="co"># keep track of output (h) for every time step</span></span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>        <span class="co"># h has dim (batch_size, hidden_size, height, width)</span></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>        output_sequence[[t]] <span class="ot">&lt;-</span> h</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>      <span class="co"># stack hs for all time steps over seq_len dimension</span></span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>      <span class="co"># stacked_outputs has dim (batch_size, seq_len, hidden_size, height, width)</span></span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>      <span class="co"># same as input to forward (x)</span></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>      stacked_outputs <span class="ot">&lt;-</span> <span class="fu">torch_stack</span>(output_sequence, <span class="at">dim =</span> <span class="dv">2</span>)</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>      <span class="co"># pass the list of outputs (hs) to next layer</span></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>      cur_layer_input <span class="ot">&lt;-</span> stacked_outputs</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>      <span class="co"># keep track of list of outputs or this layer</span></span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a>      layer_output_list[[i]] <span class="ot">&lt;-</span> stacked_outputs</span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>      <span class="co"># keep track of last state for this layer</span></span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>      layer_state_list[[i]] <span class="ot">&lt;-</span> <span class="fu">list</span>(h, c)</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(layer_output_list, layer_state_list)</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="calling-the-convlstm" class="level3">
+<h3 class="anchored" data-anchor-id="calling-the-convlstm">Calling the <code>convlstm</code></h3>
+<p>Let’s see the input format expected by <code>convlstm</code>, and how to access its different outputs.</p>
+<p>Here is a suitable input tensor.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># batch_size, seq_len, channels, height, width</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">torch_rand</span>(<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">4</span>, <span class="dv">3</span>, <span class="dv">16</span>, <span class="dv">16</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>First we make use of a single layer.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">convlstm</span>(<span class="at">input_dim =</span> <span class="dv">3</span>, <span class="at">hidden_dims =</span> <span class="dv">5</span>, <span class="at">kernel_sizes =</span> <span class="dv">3</span>, <span class="at">n_layers =</span> <span class="dv">1</span>)</span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(layer_outputs, layer_last_states) <span class="sc">%&lt;-%</span> <span class="fu">model</span>(x)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We get back a list of length two, which we immediately split up into the two types of output returned: intermediate outputs from all layers, and final states (of both types) for the last layer.</p>
+<p>With just a single layer, <code>layer_outputs[[1]]</code>holds all of the layer’s intermediate outputs, stacked on dimension two.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_outputs[[<span class="dv">1</span>]])</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="co"># [1]  2  4  5 16 16</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><code>layer_last_states[[1]]</code>is a list of tensors, the first of which holds the single layer’s final hidden state, and the second, its final cell state.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_last_states[[<span class="dv">1</span>]][[<span class="dv">1</span>]])</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="co"># [1]  2  5 16 16</span></span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_last_states[[<span class="dv">1</span>]][[<span class="dv">2</span>]])</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a><span class="co"># [1]  2  5 16 16</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>For comparison, this is how return values look for a multi-layer architecture.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">convlstm</span>(<span class="at">input_dim =</span> <span class="dv">3</span>, <span class="at">hidden_dims =</span> <span class="fu">c</span>(<span class="dv">5</span>, <span class="dv">5</span>, <span class="dv">1</span>), <span class="at">kernel_sizes =</span> <span class="fu">rep</span>(<span class="dv">3</span>, <span class="dv">3</span>), <span class="at">n_layers =</span> <span class="dv">3</span>)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="fu">c</span>(layer_outputs, layer_last_states) <span class="sc">%&lt;-%</span> <span class="fu">model</span>(x)</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a><span class="co"># for each layer, tensor of size (batch_size, seq_len, hidden_size, height, width)</span></span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_outputs[[<span class="dv">1</span>]])</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a><span class="co"># 2  4  5 16 16</span></span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_outputs[[<span class="dv">3</span>]])</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a><span class="co"># 2  4  1 16 16</span></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a><span class="co"># list of 2 tensors for each layer</span></span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a><span class="fu">str</span>(layer_last_states)</span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a><span class="co"># List of 3</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a><span class="co">#  $ :List of 2</span></span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:5, 1:16, 1:16]</span></span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:5, 1:16, 1:16]</span></span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a><span class="co">#  $ :List of 2</span></span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:5, 1:16, 1:16]</span></span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:5, 1:16, 1:16]</span></span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a><span class="co">#  $ :List of 2</span></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:1, 1:16, 1:16]</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a><span class="co">#   ..$ :Float [1:2, 1:1, 1:16, 1:16]</span></span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a><span class="co"># h, of size (batch_size, hidden_size, height, width)</span></span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_last_states[[<span class="dv">3</span>]][[<span class="dv">1</span>]])</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a><span class="co"># 2  1 16 16</span></span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a><span class="co"># c, of size (batch_size, hidden_size, height, width)</span></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(layer_last_states[[<span class="dv">3</span>]][[<span class="dv">2</span>]])</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a><span class="co"># 2  1 16 16</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Now we want to sanity-check this module with the simplest-possible dummy data.</p>
+</section>
+<section id="sanity-checking-the-convlstm" class="level3">
+<h3 class="anchored" data-anchor-id="sanity-checking-the-convlstm">Sanity-checking the <code>convlstm</code></h3>
+<p>We generate black-and-white “movies” of diagonal beams successively translated in space.</p>
+<p>Each sequence consists of six time steps, and each beam of six pixels. Just a single sequence is created manually. To create that one sequence, we start from a single beam:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torchvision)</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>beams <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> <span class="dv">6</span>)</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>beam <span class="ot">&lt;-</span> <span class="fu">torch_eye</span>(<span class="dv">6</span>) <span class="sc">%&gt;%</span> <span class="fu">nnf_pad</span>(<span class="fu">c</span>(<span class="dv">6</span>, <span class="dv">12</span>, <span class="dv">12</span>, <span class="dv">6</span>)) <span class="co"># left, right, top, bottom</span></span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>beams[[<span class="dv">1</span>]] <span class="ot">&lt;-</span> beam</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Using <code>torch_roll()</code> , we create a pattern where this beam moves up diagonally, and stack the individual tensors along the <code>timesteps</code> dimension.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="dv">6</span>) {</span>
+<span id="cb11-2"><a href="#cb11-2" aria-hidden="true" tabindex="-1"></a>  beams[[i]] <span class="ot">&lt;-</span> <span class="fu">torch_roll</span>(beam, <span class="fu">c</span>(<span class="sc">-</span>(i<span class="dv">-1</span>),i<span class="dv">-1</span>), <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>))</span>
+<span id="cb11-3"><a href="#cb11-3" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb11-4"><a href="#cb11-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb11-5"><a href="#cb11-5" aria-hidden="true" tabindex="-1"></a>init_sequence <span class="ot">&lt;-</span> <span class="fu">torch_stack</span>(beams, <span class="at">dim =</span> <span class="dv">1</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>That’s a single sequence. Thanks to <code>torchvision::transform_random_affine()</code>, we almost effortlessly produce a dataset of a hundred sequences. Moving beams start at random points in the spatial frame, but they all share that upward-diagonal motion.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>sequences <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> <span class="dv">100</span>)</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sequences[[<span class="dv">1</span>]] <span class="ot">&lt;-</span> init_sequence</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">2</span><span class="sc">:</span><span class="dv">100</span>) {</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>  sequences[[i]] <span class="ot">&lt;-</span> <span class="fu">transform_random_affine</span>(init_sequence, <span class="at">degrees =</span> <span class="dv">0</span>, <span class="at">translate =</span> <span class="fu">c</span>(<span class="fl">0.5</span>, <span class="fl">0.5</span>))</span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>input <span class="ot">&lt;-</span> <span class="fu">torch_stack</span>(sequences, <span class="at">dim =</span> <span class="dv">1</span>)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-10"><a href="#cb12-10" aria-hidden="true" tabindex="-1"></a><span class="co"># add channels dimension</span></span>
+<span id="cb12-11"><a href="#cb12-11" aria-hidden="true" tabindex="-1"></a>input <span class="ot">&lt;-</span> input<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">3</span>)</span>
+<span id="cb12-12"><a href="#cb12-12" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(input)</span>
+<span id="cb12-13"><a href="#cb12-13" aria-hidden="true" tabindex="-1"></a><span class="co"># [1] 100   6  1  24  24</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>That’s it for the raw data. Now we still need a <code>dataset</code> and a <code>dataloader</code>. Of the six time steps, we use the first five as input and try to predict the last one.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>dummy_ds <span class="ot">&lt;-</span> <span class="fu">dataset</span>(</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(data) {</span>
+<span id="cb13-4"><a href="#cb13-4" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>data <span class="ot">&lt;-</span> data</span>
+<span id="cb13-5"><a href="#cb13-5" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb13-6"><a href="#cb13-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-7"><a href="#cb13-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">.getitem =</span> <span class="cf">function</span>(i) {</span>
+<span id="cb13-8"><a href="#cb13-8" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">x =</span> self<span class="sc">$</span>data[i, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, ..], <span class="at">y =</span> self<span class="sc">$</span>data[i, <span class="dv">6</span>, ..])</span>
+<span id="cb13-9"><a href="#cb13-9" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb13-10"><a href="#cb13-10" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb13-11"><a href="#cb13-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">.length =</span> <span class="cf">function</span>() {</span>
+<span id="cb13-12"><a href="#cb13-12" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(self<span class="sc">$</span>data)</span>
+<span id="cb13-13"><a href="#cb13-13" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb13-14"><a href="#cb13-14" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb13-15"><a href="#cb13-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb13-16"><a href="#cb13-16" aria-hidden="true" tabindex="-1"></a>ds <span class="ot">&lt;-</span> <span class="fu">dummy_ds</span>(input)</span>
+<span id="cb13-17"><a href="#cb13-17" aria-hidden="true" tabindex="-1"></a>dl <span class="ot">&lt;-</span> <span class="fu">dataloader</span>(ds, <span class="at">batch_size =</span> <span class="dv">100</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here is a tiny-ish convLSTM, trained for motion prediction:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">convlstm</span>(<span class="at">input_dim =</span> <span class="dv">1</span>, <span class="at">hidden_dims =</span> <span class="fu">c</span>(<span class="dv">64</span>, <span class="dv">1</span>), <span class="at">kernel_sizes =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>), <span class="at">n_layers =</span> <span class="dv">2</span>)</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>optimizer <span class="ot">&lt;-</span> <span class="fu">optim_adam</span>(model<span class="sc">$</span>parameters)</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>num_epochs <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (epoch <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>num_epochs) {</span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a>  model<span class="sc">$</span><span class="fu">train</span>()</span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>  batch_losses <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-12"><a href="#cb14-12" aria-hidden="true" tabindex="-1"></a>  <span class="cf">for</span> (b <span class="cf">in</span> <span class="fu">enumerate</span>(dl)) {</span>
+<span id="cb14-13"><a href="#cb14-13" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-14"><a href="#cb14-14" aria-hidden="true" tabindex="-1"></a>    optimizer<span class="sc">$</span><span class="fu">zero_grad</span>()</span>
+<span id="cb14-15"><a href="#cb14-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-16"><a href="#cb14-16" aria-hidden="true" tabindex="-1"></a>    <span class="co"># last-time-step output from last layer</span></span>
+<span id="cb14-17"><a href="#cb14-17" aria-hidden="true" tabindex="-1"></a>    preds <span class="ot">&lt;-</span> <span class="fu">model</span>(b<span class="sc">$</span>x)[[<span class="dv">2</span>]][[<span class="dv">2</span>]][[<span class="dv">1</span>]]</span>
+<span id="cb14-18"><a href="#cb14-18" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-19"><a href="#cb14-19" aria-hidden="true" tabindex="-1"></a>    loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(preds, b<span class="sc">$</span>y)</span>
+<span id="cb14-20"><a href="#cb14-20" aria-hidden="true" tabindex="-1"></a>    batch_losses <span class="ot">&lt;-</span> <span class="fu">c</span>(batch_losses, loss<span class="sc">$</span><span class="fu">item</span>())</span>
+<span id="cb14-21"><a href="#cb14-21" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb14-22"><a href="#cb14-22" aria-hidden="true" tabindex="-1"></a>    loss<span class="sc">$</span><span class="fu">backward</span>()</span>
+<span id="cb14-23"><a href="#cb14-23" aria-hidden="true" tabindex="-1"></a>    optimizer<span class="sc">$</span><span class="fu">step</span>()</span>
+<span id="cb14-24"><a href="#cb14-24" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb14-25"><a href="#cb14-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb14-26"><a href="#cb14-26" aria-hidden="true" tabindex="-1"></a>  <span class="cf">if</span> (epoch <span class="sc">%%</span> <span class="dv">10</span> <span class="sc">==</span> <span class="dv">0</span>)</span>
+<span id="cb14-27"><a href="#cb14-27" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">sprintf</span>(<span class="st">"</span><span class="sc">\n</span><span class="st">Epoch %d, training loss:%3f</span><span class="sc">\n</span><span class="st">"</span>, epoch, <span class="fu">mean</span>(batch_losses)))</span>
+<span id="cb14-28"><a href="#cb14-28" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>Epoch 10, training loss:0.008522
+
+Epoch 20, training loss:0.008079
+
+Epoch 30, training loss:0.006187
+
+Epoch 40, training loss:0.003828
+
+Epoch 50, training loss:0.002322
+
+Epoch 60, training loss:0.001594
+
+Epoch 70, training loss:0.001376
+
+Epoch 80, training loss:0.001258
+
+Epoch 90, training loss:0.001218
+
+Epoch 100, training loss:0.001171</code></pre>
+<p>Loss decreases, but that in itself is not a guarantee the model has learned anything. Has it? Let’s inspect its forecast for the very first sequence and see.</p>
+<p>For printing, I’m zooming in on the relevant region in the 24x24-pixel frame. Here is the ground truth for time step six:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>b<span class="sc">$</span>y[<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">6</span><span class="sc">:</span><span class="dv">15</span>, <span class="dv">10</span><span class="sc">:</span><span class="dv">19</span>]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>0  0  0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0  0  0
+0  0  1  0  0  0  0  0  0  0
+0  0  0  1  0  0  0  0  0  0
+0  0  0  0  1  0  0  0  0  0
+0  0  0  0  0  1  0  0  0  0
+0  0  0  0  0  0  1  0  0  0
+0  0  0  0  0  0  0  1  0  0
+0  0  0  0  0  0  0  0  0  0
+0  0  0  0  0  0  0  0  0  0</code></pre>
+<p>And here is the forecast. This does not look bad at all, given there was neither experimentation nor tuning involved.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(<span class="fu">as.matrix</span>(preds[<span class="dv">1</span>, <span class="dv">1</span>, <span class="dv">6</span><span class="sc">:</span><span class="dv">15</span>, <span class="dv">10</span><span class="sc">:</span><span class="dv">19</span>]), <span class="dv">2</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>       [,1]  [,2]  [,3]  [,4]  [,5]  [,6]  [,7]  [,8]  [,9] [,10]
+ [1,]  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00  0.00     0
+ [2,] -0.02  0.36  0.01  0.06  0.00  0.00  0.00  0.00  0.00     0
+ [3,]  0.00 -0.01  0.71  0.01  0.06  0.00  0.00  0.00  0.00     0
+ [4,] -0.01  0.04  0.00  0.75  0.01  0.06  0.00  0.00  0.00     0
+ [5,]  0.00 -0.01 -0.01 -0.01  0.75  0.01  0.06  0.00  0.00     0
+ [6,]  0.00  0.01  0.00 -0.07 -0.01  0.75  0.01  0.06  0.00     0
+ [7,]  0.00  0.01 -0.01 -0.01 -0.07 -0.01  0.75  0.01  0.06     0
+ [8,]  0.00  0.00  0.01  0.00  0.00 -0.01  0.00  0.71  0.00     0
+ [9,]  0.00  0.00  0.00  0.01  0.01  0.00  0.03 -0.01  0.37     0
+[10,]  0.00  0.00  0.00  0.00  0.00  0.00 -0.01 -0.01 -0.01     0</code></pre>
+<p>This should suffice for a sanity check. If you made it till the end, thanks for your patience! In the best case, you’ll be able to apply this architecture (or a similar one) to your own data – but even if not, I hope you’ve enjoyed learning about <code>torch</code> model coding and/or RNN weirdness ;-)</p>
+<p>I, for one, am certainly looking forward to exploring convLSTMs on real-world problems in the near future. Thanks for reading!</p>
+</section>
+</section>
+<section id="appendix" class="level2">
+<h2 class="anchored" data-anchor-id="appendix">Appendix</h2>
+<p>This appendix contains the code used to create tables 1 and 2 above.</p>
+<section id="keras" class="level3">
+<h3 class="anchored" data-anchor-id="keras">Keras</h3>
+<section id="lstm" class="level4">
+<h4 class="anchored" data-anchor-id="lstm">LSTM</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(keras)</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a><span class="co"># batch of 3, with 4 time steps each and a single feature</span></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>input <span class="ot">&lt;-</span> <span class="fu">k_random_normal</span>(<span class="at">shape =</span> <span class="fu">c</span>(3L, 4L, 1L))</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>input</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a><span class="co"># default args</span></span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, units)</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">layer_lstm</span>(</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a><span class="fu">lstm</span>(input)</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a><span class="co"># return_sequences = TRUE</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, time steps, units)</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb20-19"><a href="#cb20-19" aria-hidden="true" tabindex="-1"></a><span class="co"># note how for each item in the batch, the value for time step 4 equals that obtained above</span></span>
+<span id="cb20-20"><a href="#cb20-20" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">layer_lstm</span>(</span>
+<span id="cb20-21"><a href="#cb20-21" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb20-22"><a href="#cb20-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_sequences =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb20-23"><a href="#cb20-23" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb20-24"><a href="#cb20-24" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb20-25"><a href="#cb20-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># bias is by default initialized to 0</span></span>
+<span id="cb20-26"><a href="#cb20-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-27"><a href="#cb20-27" aria-hidden="true" tabindex="-1"></a><span class="fu">lstm</span>(input)</span>
+<span id="cb20-28"><a href="#cb20-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-29"><a href="#cb20-29" aria-hidden="true" tabindex="-1"></a><span class="co"># return_state = TRUE</span></span>
+<span id="cb20-30"><a href="#cb20-30" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = list of:</span></span>
+<span id="cb20-31"><a href="#cb20-31" aria-hidden="true" tabindex="-1"></a><span class="co">#                - outputs, of shape: (batch_size, units)</span></span>
+<span id="cb20-32"><a href="#cb20-32" aria-hidden="true" tabindex="-1"></a><span class="co">#                - "memory states" for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb20-33"><a href="#cb20-33" aria-hidden="true" tabindex="-1"></a><span class="co">#                - "carry states" for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb20-34"><a href="#cb20-34" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb20-35"><a href="#cb20-35" aria-hidden="true" tabindex="-1"></a><span class="co"># note how the first and second list items are identical!</span></span>
+<span id="cb20-36"><a href="#cb20-36" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">layer_lstm</span>(</span>
+<span id="cb20-37"><a href="#cb20-37" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb20-38"><a href="#cb20-38" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_state =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb20-39"><a href="#cb20-39" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb20-40"><a href="#cb20-40" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb20-41"><a href="#cb20-41" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-42"><a href="#cb20-42" aria-hidden="true" tabindex="-1"></a><span class="fu">lstm</span>(input)</span>
+<span id="cb20-43"><a href="#cb20-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-44"><a href="#cb20-44" aria-hidden="true" tabindex="-1"></a><span class="co"># return_state = TRUE, return_sequences = TRUE</span></span>
+<span id="cb20-45"><a href="#cb20-45" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = list of:</span></span>
+<span id="cb20-46"><a href="#cb20-46" aria-hidden="true" tabindex="-1"></a><span class="co">#                - outputs, of shape: (batch_size, time steps, units)</span></span>
+<span id="cb20-47"><a href="#cb20-47" aria-hidden="true" tabindex="-1"></a><span class="co">#                - "memory" states for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb20-48"><a href="#cb20-48" aria-hidden="true" tabindex="-1"></a><span class="co">#                - "carry states" for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb20-49"><a href="#cb20-49" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb20-50"><a href="#cb20-50" aria-hidden="true" tabindex="-1"></a><span class="co"># note how again, the "memory" state found in list item 2 matches the final-time step outputs reported in item 1</span></span>
+<span id="cb20-51"><a href="#cb20-51" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">layer_lstm</span>(</span>
+<span id="cb20-52"><a href="#cb20-52" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb20-53"><a href="#cb20-53" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_sequences =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb20-54"><a href="#cb20-54" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_state =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb20-55"><a href="#cb20-55" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb20-56"><a href="#cb20-56" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb20-57"><a href="#cb20-57" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-58"><a href="#cb20-58" aria-hidden="true" tabindex="-1"></a><span class="fu">lstm</span>(input)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="gru" class="level4">
+<h4 class="anchored" data-anchor-id="gru">GRU</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a><span class="co"># default args</span></span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, units)</span></span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>gru <span class="ot">&lt;-</span> <span class="fu">layer_gru</span>(</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb21-5"><a href="#cb21-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb21-6"><a href="#cb21-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb21-7"><a href="#cb21-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-8"><a href="#cb21-8" aria-hidden="true" tabindex="-1"></a><span class="fu">gru</span>(input)</span>
+<span id="cb21-9"><a href="#cb21-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-10"><a href="#cb21-10" aria-hidden="true" tabindex="-1"></a><span class="co"># return_sequences = TRUE</span></span>
+<span id="cb21-11"><a href="#cb21-11" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, time steps, units)</span></span>
+<span id="cb21-12"><a href="#cb21-12" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb21-13"><a href="#cb21-13" aria-hidden="true" tabindex="-1"></a><span class="co"># note how for each item in the batch, the value for time step 4 equals that obtained above</span></span>
+<span id="cb21-14"><a href="#cb21-14" aria-hidden="true" tabindex="-1"></a>gru <span class="ot">&lt;-</span> <span class="fu">layer_gru</span>(</span>
+<span id="cb21-15"><a href="#cb21-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb21-16"><a href="#cb21-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_sequences =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb21-17"><a href="#cb21-17" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb21-18"><a href="#cb21-18" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb21-19"><a href="#cb21-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-20"><a href="#cb21-20" aria-hidden="true" tabindex="-1"></a><span class="fu">gru</span>(input)</span>
+<span id="cb21-21"><a href="#cb21-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-22"><a href="#cb21-22" aria-hidden="true" tabindex="-1"></a><span class="co"># return_state = TRUE</span></span>
+<span id="cb21-23"><a href="#cb21-23" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = list of:</span></span>
+<span id="cb21-24"><a href="#cb21-24" aria-hidden="true" tabindex="-1"></a><span class="co">#    - outputs, of shape: (batch_size, units)</span></span>
+<span id="cb21-25"><a href="#cb21-25" aria-hidden="true" tabindex="-1"></a><span class="co">#    - "memory" states for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb21-26"><a href="#cb21-26" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb21-27"><a href="#cb21-27" aria-hidden="true" tabindex="-1"></a><span class="co"># note how the list items are identical!</span></span>
+<span id="cb21-28"><a href="#cb21-28" aria-hidden="true" tabindex="-1"></a>gru <span class="ot">&lt;-</span> <span class="fu">layer_gru</span>(</span>
+<span id="cb21-29"><a href="#cb21-29" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb21-30"><a href="#cb21-30" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_state =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb21-31"><a href="#cb21-31" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb21-32"><a href="#cb21-32" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb21-33"><a href="#cb21-33" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-34"><a href="#cb21-34" aria-hidden="true" tabindex="-1"></a><span class="fu">gru</span>(input)</span>
+<span id="cb21-35"><a href="#cb21-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb21-36"><a href="#cb21-36" aria-hidden="true" tabindex="-1"></a><span class="co"># return_state = TRUE, return_sequences = TRUE</span></span>
+<span id="cb21-37"><a href="#cb21-37" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = list of:</span></span>
+<span id="cb21-38"><a href="#cb21-38" aria-hidden="true" tabindex="-1"></a><span class="co">#    - outputs, of shape: (batch_size, time steps, units)</span></span>
+<span id="cb21-39"><a href="#cb21-39" aria-hidden="true" tabindex="-1"></a><span class="co">#    - "memory states" for the last time step, of shape: (batch_size, units)</span></span>
+<span id="cb21-40"><a href="#cb21-40" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb21-41"><a href="#cb21-41" aria-hidden="true" tabindex="-1"></a><span class="co"># note how again, the "memory state" found in list item 2 matches the final-time-step outputs reported in item 1</span></span>
+<span id="cb21-42"><a href="#cb21-42" aria-hidden="true" tabindex="-1"></a>gru <span class="ot">&lt;-</span> <span class="fu">layer_gru</span>(</span>
+<span id="cb21-43"><a href="#cb21-43" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="dv">1</span>,</span>
+<span id="cb21-44"><a href="#cb21-44" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_sequences =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb21-45"><a href="#cb21-45" aria-hidden="true" tabindex="-1"></a>  <span class="at">return_state =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb21-46"><a href="#cb21-46" aria-hidden="true" tabindex="-1"></a>  <span class="at">kernel_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>),</span>
+<span id="cb21-47"><a href="#cb21-47" aria-hidden="true" tabindex="-1"></a>  <span class="at">recurrent_initializer =</span> <span class="fu">initializer_constant</span>(<span class="at">value =</span> <span class="dv">1</span>)</span>
+<span id="cb21-48"><a href="#cb21-48" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb21-49"><a href="#cb21-49" aria-hidden="true" tabindex="-1"></a><span class="fu">gru</span>(input)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+</section>
+<section id="torch" class="level3">
+<h3 class="anchored" data-anchor-id="torch"><code>torch</code></h3>
+<section id="lstm-non-stacked-architecture" class="level4">
+<h4 class="anchored" data-anchor-id="lstm-non-stacked-architecture">LSTM (non-stacked architecture)</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb22-2"><a href="#cb22-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-3"><a href="#cb22-3" aria-hidden="true" tabindex="-1"></a><span class="co"># batch of 3, with 4 time steps each and a single feature</span></span>
+<span id="cb22-4"><a href="#cb22-4" aria-hidden="true" tabindex="-1"></a><span class="co"># we will specify batch_first = TRUE when creating the LSTM</span></span>
+<span id="cb22-5"><a href="#cb22-5" aria-hidden="true" tabindex="-1"></a>input <span class="ot">&lt;-</span> <span class="fu">torch_randn</span>(<span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">4</span>, <span class="dv">1</span>))</span>
+<span id="cb22-6"><a href="#cb22-6" aria-hidden="true" tabindex="-1"></a>input</span>
+<span id="cb22-7"><a href="#cb22-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-8"><a href="#cb22-8" aria-hidden="true" tabindex="-1"></a><span class="co"># default args</span></span>
+<span id="cb22-9"><a href="#cb22-9" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, units)</span></span>
+<span id="cb22-10"><a href="#cb22-10" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb22-11"><a href="#cb22-11" aria-hidden="true" tabindex="-1"></a><span class="co"># note: there is an additional argument num_layers that we could use to specify a stacked LSTM - effectively composing two LSTM modules</span></span>
+<span id="cb22-12"><a href="#cb22-12" aria-hidden="true" tabindex="-1"></a><span class="co"># default for num_layers is 1 though </span></span>
+<span id="cb22-13"><a href="#cb22-13" aria-hidden="true" tabindex="-1"></a>lstm <span class="ot">&lt;-</span> <span class="fu">nn_lstm</span>(</span>
+<span id="cb22-14"><a href="#cb22-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">input_size =</span> <span class="dv">1</span>, <span class="co"># number of input features</span></span>
+<span id="cb22-15"><a href="#cb22-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">hidden_size =</span> <span class="dv">1</span>, <span class="co"># number of hidden (and output!) features</span></span>
+<span id="cb22-16"><a href="#cb22-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">batch_first =</span> <span class="cn">TRUE</span> <span class="co"># for easy comparability with Keras</span></span>
+<span id="cb22-17"><a href="#cb22-17" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb22-18"><a href="#cb22-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-19"><a href="#cb22-19" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(lstm<span class="sc">$</span>weight_ih_l1, <span class="dv">1</span>)</span>
+<span id="cb22-20"><a href="#cb22-20" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(lstm<span class="sc">$</span>weight_hh_l1, <span class="dv">1</span>)</span>
+<span id="cb22-21"><a href="#cb22-21" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(lstm<span class="sc">$</span>bias_ih_l1, <span class="dv">0</span>)</span>
+<span id="cb22-22"><a href="#cb22-22" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(lstm<span class="sc">$</span>bias_hh_l1, <span class="dv">0</span>)</span>
+<span id="cb22-23"><a href="#cb22-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-24"><a href="#cb22-24" aria-hidden="true" tabindex="-1"></a><span class="co"># returns a list of length 2, namely</span></span>
+<span id="cb22-25"><a href="#cb22-25" aria-hidden="true" tabindex="-1"></a><span class="co">#   - outputs, of shape (batch_size, time steps, hidden_size) - given we specified batch_first</span></span>
+<span id="cb22-26"><a href="#cb22-26" aria-hidden="true" tabindex="-1"></a><span class="co">#       Note 1: If this is a stacked LSTM, these are the outputs from the last layer only.</span></span>
+<span id="cb22-27"><a href="#cb22-27" aria-hidden="true" tabindex="-1"></a><span class="co">#               For our current purpose, this is irrelevant, as we're restricting ourselves to single-layer LSTMs.</span></span>
+<span id="cb22-28"><a href="#cb22-28" aria-hidden="true" tabindex="-1"></a><span class="co">#       Note 2: hidden_size here is equivalent to units in Keras - both specify number of features</span></span>
+<span id="cb22-29"><a href="#cb22-29" aria-hidden="true" tabindex="-1"></a><span class="co">#  - list of:</span></span>
+<span id="cb22-30"><a href="#cb22-30" aria-hidden="true" tabindex="-1"></a><span class="co">#    - hidden state for the last time step, of shape (num_layers, batch_size, hidden_size)</span></span>
+<span id="cb22-31"><a href="#cb22-31" aria-hidden="true" tabindex="-1"></a><span class="co">#    - cell state for the last time step, of shape (num_layers, batch_size, hidden_size)</span></span>
+<span id="cb22-32"><a href="#cb22-32" aria-hidden="true" tabindex="-1"></a><span class="co">#      Note 3: For a single-layer LSTM, the hidden states are already provided in the first list item.</span></span>
+<span id="cb22-33"><a href="#cb22-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb22-34"><a href="#cb22-34" aria-hidden="true" tabindex="-1"></a><span class="fu">lstm</span>(input)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="gru-non-stacked-architecture" class="level4">
+<h4 class="anchored" data-anchor-id="gru-non-stacked-architecture">GRU (non-stacked architecture)</h4>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a><span class="co"># default args</span></span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a><span class="co"># return shape = (batch_size, units)</span></span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a><span class="co">#</span></span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a><span class="co"># note: there is an additional argument num_layers that we could use to specify a stacked GRU - effectively composing two GRU modules</span></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a><span class="co"># default for num_layers is 1 though </span></span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>gru <span class="ot">&lt;-</span> <span class="fu">nn_gru</span>(</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">input_size =</span> <span class="dv">1</span>, <span class="co"># number of input features</span></span>
+<span id="cb23-8"><a href="#cb23-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">hidden_size =</span> <span class="dv">1</span>, <span class="co"># number of hidden (and output!) features</span></span>
+<span id="cb23-9"><a href="#cb23-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">batch_first =</span> <span class="cn">TRUE</span> <span class="co"># for easy comparability with Keras</span></span>
+<span id="cb23-10"><a href="#cb23-10" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb23-11"><a href="#cb23-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-12"><a href="#cb23-12" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(gru<span class="sc">$</span>weight_ih_l1, <span class="dv">1</span>)</span>
+<span id="cb23-13"><a href="#cb23-13" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(gru<span class="sc">$</span>weight_hh_l1, <span class="dv">1</span>)</span>
+<span id="cb23-14"><a href="#cb23-14" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(gru<span class="sc">$</span>bias_ih_l1, <span class="dv">0</span>)</span>
+<span id="cb23-15"><a href="#cb23-15" aria-hidden="true" tabindex="-1"></a><span class="fu">nn_init_constant_</span>(gru<span class="sc">$</span>bias_hh_l1, <span class="dv">0</span>)</span>
+<span id="cb23-16"><a href="#cb23-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-17"><a href="#cb23-17" aria-hidden="true" tabindex="-1"></a><span class="co"># returns a list of length 2, namely</span></span>
+<span id="cb23-18"><a href="#cb23-18" aria-hidden="true" tabindex="-1"></a><span class="co">#   - outputs, of shape (batch_size, time steps, hidden_size) - given we specified batch_first</span></span>
+<span id="cb23-19"><a href="#cb23-19" aria-hidden="true" tabindex="-1"></a><span class="co">#       Note 1: If this is a stacked GRU, these are the outputs from the last layer only.</span></span>
+<span id="cb23-20"><a href="#cb23-20" aria-hidden="true" tabindex="-1"></a><span class="co">#               For our current purpose, this is irrelevant, as we're restricting ourselves to single-layer GRUs.</span></span>
+<span id="cb23-21"><a href="#cb23-21" aria-hidden="true" tabindex="-1"></a><span class="co">#       Note 2: hidden_size here is equivalent to units in Keras - both specify number of features</span></span>
+<span id="cb23-22"><a href="#cb23-22" aria-hidden="true" tabindex="-1"></a><span class="co">#  - list of:</span></span>
+<span id="cb23-23"><a href="#cb23-23" aria-hidden="true" tabindex="-1"></a><span class="co">#    - hidden state for the last time step, of shape (num_layers, batch_size, hidden_size)</span></span>
+<span id="cb23-24"><a href="#cb23-24" aria-hidden="true" tabindex="-1"></a><span class="co">#    - cell state for the last time step, of shape (num_layers, batch_size, hidden_size)</span></span>
+<span id="cb23-25"><a href="#cb23-25" aria-hidden="true" tabindex="-1"></a><span class="co">#       Note 3: For a single-layer GRU, these values are already provided in the first list item.</span></span>
+<span id="cb23-26"><a href="#cb23-26" aria-hidden="true" tabindex="-1"></a><span class="fu">gru</span>(input)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+</section>
+</section>
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>Leaving aside the batch dimension in this discussion.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>In theory, it would be possible for them to be of different sizes if the respective weight matrices transformed their operands to the same output size.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Yes, this is the same formula as above.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

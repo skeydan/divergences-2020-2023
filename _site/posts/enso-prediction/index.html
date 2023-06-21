@@ -1,0 +1,1165 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-99.9.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sigrid Keydana">
+<meta name="dcterms.date" content="2022-02-02">
+<meta name="description" content="El Niño-Southern Oscillation (ENSO) is an atmospheric phenomenon, located in the tropical Pacific, that greatly affects ecosystems as well as human well-being on a large portion of the globe. We use the convLSTM introduced in a prior post to predict the Niño 3.4 Index from spatially-ordered sequences of sea surface temperatures.">
+
+<title>divergences - Forecasting El Niño-Southern Oscillation (ENSO)</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+/* CSS for citations */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging-indent div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">divergences</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Forecasting El Niño-Southern Oscillation (ENSO)</h1>
+                  <div>
+        <div class="description">
+          <p>El Niño-Southern Oscillation (ENSO) is an atmospheric phenomenon, located in the tropical Pacific, that greatly affects ecosystems as well as human well-being on a large portion of the globe. We use the convLSTM introduced in a prior post to predict the Niño 3.4 Index from spatially-ordered sequences of sea surface temperatures.</p>
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">Deep Learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Sigrid Keydana </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">February 2, 2022</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>Today, we use the convLSTM introduced in a <a href="https://blogs.rstudio.com/ai/posts/2020-12-17-torch-convlstm/">previous</a> post to predict <a href="https://en.wikipedia.org/wiki/El_Ni%C3%B1o%E2%80%93Southern_Oscillation">El Niño-Southern Oscillation (ENSO).</a></p>
+<section id="el-niño-la-niña" class="level1">
+<h1>El Niño, la Niña</h1>
+<p>ENSO refers to a changing pattern of sea surface temperatures and sea-level pressures occurring in the equatorial Pacific. From its three overall states, probably the best-known is El Niño. El Niño occurs when surface water temperatures in the eastern Pacific are higher than normal, and the strong winds that normally blow from east to west are unusually weak. The opposite conditions are termed La Niña. Everything in-between is classified as normal.</p>
+<p>ENSO has great impact on the weather worldwide, and routinely harms ecosystems and societies through storms, droughts and flooding, possibly resulting in famines and economic crises. The best societies can do is try to adapt and mitigate severe consequences. Such efforts are aided by accurate forecasts, the further ahead the better.</p>
+<p>Here, deep learning (DL) can potentially help: Variables like sea surface temperatures and pressures are given on a spatial grid – that of the earth – and as we know, DL is good at extracting spatial (e.g., image) features. For ENSO prediction, architectures like convolutional neural networks (<span class="citation" data-cites="dlenso">Ham, Kim, and Luo (<a href="#ref-dlenso" role="doc-biblioref">2019</a>)</span>) or convolutional-recurrent hybrids<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> are habitually used. One such hybrid is just our convLSTM; it operates on sequences of features given on a spatial grid. Today, thus, we’ll be training a model for ENSO forecasting. This model will have a convLSTM for its central ingredient.</p>
+<p>Before we start, a note. While our model fits well with architectures described in the relevant papers, the same cannot be said for amount of training data used. For reasons of practicality, we use actual observations only; consequently, we end up with a small (relative to the task) dataset. In contrast, research papers tend to make use of climate simulations<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>, resulting in significantly more data to work with.</p>
+<p>From the outset, then, we don’t expect stellar performance. Nevertheless, this should make for an interesting case study, and a useful code template for our readers to apply to their own data.</p>
+</section>
+<section id="data" class="level1">
+<h1>Data</h1>
+<p>We will attempt to predict monthly average sea surface temperature in the Niño 3.4 region<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>, as represented by the Niño 3.4 Index, plus categorization as one of <em>El Niño</em>, <em>La Niña</em> or <em>neutral</em><a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>. Predictions will be based on prior monthly sea surface temperatures spanning a large portion of the globe.</p>
+<p>On the input side, public and ready-to-use data may be downloaded from <a href="https://ds.data.jma.go.jp/tcc/tcc/index.html">Tokyo Climate Center</a>; as to prediction targets, we obtain index and classification <a href="https://bmcnoldy.rsmas.miami.edu/tropics/oni/">here</a>.</p>
+<p>Input and target data both are provided monthly. They intersect in the time period ranging from 1891-01-01 to 2020-08-01; so this is the range of dates we’ll be zooming in on.</p>
+<section id="input-sea-surface-temperatures" class="level2">
+<h2 class="anchored" data-anchor-id="input-sea-surface-temperatures">Input: Sea Surface Temperatures</h2>
+<p>Monthly sea surface temperatures are provided in a latitude-longitude grid of resolution 1°. Details of how the data were processed are available <a href="https://ds.data.jma.go.jp/tcc/tcc/library/MRCS_SV12/explanation/cobe_sst_e.htm">here</a>.</p>
+<p>Data files are available in <a href="https://en.wikipedia.org/wiki/GRIB">GRIB</a> format; each file contains averages computed for a single month. We can either download individual files or <a href="https://ds.data.jma.go.jp/tcc/tcc/products/elnino/cobesst/cobe-sst.html">generate a text file of URLs</a> for download. Once you’ve saved these URLs to a file, you can have R get the files for you like so:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a>purrr<span class="sc">::</span><span class="fu">walk</span>(</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>   <span class="fu">readLines</span>(<span class="st">"files"</span>),</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a>   <span class="cf">function</span>(f) <span class="fu">download.file</span>(<span class="at">url =</span> f, <span class="at">destfile =</span> <span class="fu">basename</span>(f))</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>From R, we can read GRIB files using <a href="https://cran.r-project.org/web/packages/stars/">stars</a>. For example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="co"># let's just quickly load all libraries we require to start with</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)</span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(stars)</span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(viridis)</span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(ggthemes)</span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="fu">torch_manual_seed</span>(<span class="dv">777</span>)</span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="fu">read_stars</span>(<span class="fu">file.path</span>(grb_dir, <span class="st">"sst189101.grb"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>stars object with 2 dimensions and 1 attribute
+attribute(s):
+ sst189101.grb   
+ Min.   :-274.9  
+ 1st Qu.:-272.8  
+ Median :-259.1  
+ Mean   :-260.0  
+ 3rd Qu.:-248.4  
+ Max.   :-242.8  
+ NA's   :21001   
+dimension(s):
+  from  to offset delta                       refsys point values    
+x    1 360      0     1 Coordinate System importe...    NA   NULL [x]
+y    1 180     90    -1 Coordinate System importe...    NA   NULL [y]</code></pre>
+<p>So in this GRIB file, we have one attribute - which we know to be sea surface temperature – on a two-dimensional grid. As to the latter, we can complement what <code>stars</code> tells us with additional info found in the <a href="https://ds.data.jma.go.jp/tcc/tcc/library/MRCS_SV12/explanation/cobe_sst_e.htm">documentation</a>:</p>
+<blockquote class="blockquote">
+<p>The east-west grid points run eastward from 0.5ºE to 0.5ºW, while the north-south grid points run northward from 89.5ºS to 89.5ºN.</p>
+</blockquote>
+<p>We note a few things we’ll want to do with this data. For one, the temperatures seem to be given in Kelvin, but with minus signs.<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a> We’ll remove the minus signs and convert to degrees Celsius for convenience. We’ll also have to think about what to do with the <code>NA</code>s that appear for all non-maritime coordinates.</p>
+<p>Before we get there though, we need to combine data from all files into a single data frame. This adds an additional dimension, time, ranging from 1891/01/01 to 2020/01/12:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>grb <span class="ot">&lt;-</span> <span class="fu">read_stars</span>(</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">file.path</span>(grb_dir, <span class="fu">map</span>(<span class="fu">readLines</span>(<span class="st">"files"</span>, <span class="at">warn =</span> <span class="cn">FALSE</span>), basename)), <span class="at">along =</span> <span class="st">"time"</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">st_set_dimensions</span>(<span class="dv">3</span>,</span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a>                    <span class="at">values =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"1891-01-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2020-12-01"</span>), <span class="at">by =</span> <span class="st">"months"</span>),</span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>                    <span class="at">names =</span> <span class="st">"time"</span></span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>                    )</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>grb</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>stars object with 3 dimensions and 1 attribute
+attribute(s), summary of first 1e+05 cells:
+ sst189101.grb   
+ Min.   :-274.9  
+ 1st Qu.:-273.3  
+ Median :-258.8  
+ Mean   :-260.0  
+ 3rd Qu.:-247.8  
+ Max.   :-242.8  
+ NA's   :33724   
+dimension(s):
+     from   to offset delta                       refsys point                    values    
+x       1  360      0     1 Coordinate System importe...    NA                      NULL [x]
+y       1  180     90    -1 Coordinate System importe...    NA                      NULL [y]
+time    1 1560     NA    NA                         Date    NA 1891-01-01,...,2020-12-01    </code></pre>
+<p>Let’s visually inspect the spatial distribution of monthly temperatures for one year, 2020:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb6"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>() <span class="sc">+</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_stars</span>(<span class="at">data =</span> grb <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="fu">between</span>(time, <span class="fu">as.Date</span>(<span class="st">"2020-01-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2020-12-01"</span>))), <span class="at">alpha =</span> <span class="fl">0.8</span>) <span class="sc">+</span></span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">facet_wrap</span>(<span class="st">"time"</span>) <span class="sc">+</span></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_fill_viridis</span>() <span class="sc">+</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">coord_equal</span>() <span class="sc">+</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_map</span>() <span class="sc">+</span></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme</span>(<span class="at">legend.position =</span> <span class="st">"none"</span>) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="enso.png" class="quarto-discovered-preview-image img-fluid" alt="Monthly sea surface temperatures, 2020/01/01 - 2020/01/12." width="596"></p>
+</div>
+</div>
+</section>
+<section id="target-niño-3.4-index" class="level2">
+<h2 class="anchored" data-anchor-id="target-niño-3.4-index">Target: Niño 3.4 Index</h2>
+<p>For the Niño 3.4 Index, we download the monthly <a href="https://bmcnoldy.rsmas.miami.edu/tropics/oni/ONI_NINO34_1854-2020.txt">data</a> and, among the provided features, zoom in on two: the index itself (column <code>NINO34_MEAN</code>) and <code>PHASE</code>, which can be <code>E</code> (El Niño), <code>L</code> (La Niño) or <code>N</code> (neutral).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>nino <span class="ot">&lt;-</span> <span class="fu">read_table2</span>(<span class="st">"ONI_NINO34_1854-2020.txt"</span>, <span class="at">skip =</span> <span class="dv">9</span>) <span class="sc">%&gt;%</span></span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">month =</span> <span class="fu">as.Date</span>(<span class="fu">paste0</span>(YEAR, <span class="st">"-"</span>, <span class="st">`</span><span class="at">MON/MMM</span><span class="st">`</span>, <span class="st">"-01"</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(month, NINO34_MEAN, PHASE) <span class="sc">%&gt;%</span></span>
+<span id="cb7-4"><a href="#cb7-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">filter</span>(<span class="fu">between</span>(month, <span class="fu">as.Date</span>(<span class="st">"1891-01-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2020-08-01"</span>))) <span class="sc">%&gt;%</span></span>
+<span id="cb7-5"><a href="#cb7-5" aria-hidden="true" tabindex="-1"></a>  <span class="fu">mutate</span>(<span class="at">phase_code =</span> <span class="fu">as.numeric</span>(<span class="fu">as.factor</span>(PHASE)))</span>
+<span id="cb7-6"><a href="#cb7-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb7-7"><a href="#cb7-7" aria-hidden="true" tabindex="-1"></a><span class="fu">nrow</span>(nino)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>1556</code></pre>
+<p>Next, we look at how to get the data into a format convenient for training and prediction.</p>
+</section>
+</section>
+<section id="preprocessing" class="level1">
+<h1>Preprocessing</h1>
+<section id="input" class="level2">
+<h2 class="anchored" data-anchor-id="input">Input</h2>
+<p>First, we remove all input data for points in time where ground truth data are still missing.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>sst <span class="ot">&lt;-</span> grb <span class="sc">%&gt;%</span> <span class="fu">filter</span>(time <span class="sc">&lt;=</span> <span class="fu">as.Date</span>(<span class="st">"2020-08-01"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Next, as is done by e.g. <span class="citation" data-cites="dlenso">Ham, Kim, and Luo (<a href="#ref-dlenso" role="doc-biblioref">2019</a>)</span>, we only use grid points between 55° south and 60° north. This has the additional advantage of reducing memory requirements.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>sst <span class="ot">&lt;-</span> grb <span class="sc">%&gt;%</span> <span class="fu">filter</span>(<span class="fu">between</span>(y,<span class="sc">-</span><span class="dv">55</span>, <span class="dv">60</span>))</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a><span class="fu">dim</span>(sst)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>360, 115, 1560</code></pre>
+<p>As already alluded to, with the little data we have we can’t expect much in terms of generalization. Still, we set aside a small portion of the data for validation, since we’d like for this post to serve as a useful template to be used with bigger datasets.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>sst_train <span class="ot">&lt;-</span> sst <span class="sc">%&gt;%</span> <span class="fu">filter</span>(time <span class="sc">&lt;</span> <span class="fu">as.Date</span>(<span class="st">"1990-01-01"</span>))</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>sst_valid <span class="ot">&lt;-</span> sst <span class="sc">%&gt;%</span> <span class="fu">filter</span>(time <span class="sc">&gt;=</span> <span class="fu">as.Date</span>(<span class="st">"1990-01-01"</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>From here on, we work with R arrays.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>sst_train <span class="ot">&lt;-</span> <span class="fu">as.tbl_cube.stars</span>(sst_train)<span class="sc">$</span>mets[[<span class="dv">1</span>]]</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>sst_valid <span class="ot">&lt;-</span> <span class="fu">as.tbl_cube.stars</span>(sst_valid)<span class="sc">$</span>mets[[<span class="dv">1</span>]]</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Conversion to degrees Celsius is not strictly necessary, as initial experiments showed a slight performance increase due to normalizing the input, and we’re going to do that anyway. Still, it reads nicer to humans than Kelvin.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>sst_train <span class="ot">&lt;-</span> sst_train <span class="sc">+</span> <span class="fl">273.15</span></span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a><span class="fu">quantile</span>(sst_train, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>     0%     25%     50%     75%    100% 
+-1.8000 12.9975 21.8775 26.8200 34.3700 </code></pre>
+<p>Not at all surprisingly, global warming is evident from inspecting temperature distribution on the validation set (which was chosen to span the last thirty-one years).</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>sst_valid <span class="ot">&lt;-</span> sst_valid <span class="sc">+</span> <span class="fl">273.15</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a><span class="fu">quantile</span>(sst_valid, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>    0%    25%    50%    75%   100% 
+-1.800 13.425 22.335 27.240 34.870 </code></pre>
+<p>The next-to-last step normalizes both sets according to training mean and variance.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>train_mean <span class="ot">&lt;-</span> <span class="fu">mean</span>(sst_train, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>train_sd <span class="ot">&lt;-</span> <span class="fu">sd</span>(sst_train, <span class="at">na.rm =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>sst_train <span class="ot">&lt;-</span> (sst_train <span class="sc">-</span> train_mean) <span class="sc">/</span> train_sd</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>sst_valid <span class="ot">&lt;-</span> (sst_valid <span class="sc">-</span> train_mean) <span class="sc">/</span> train_sd</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Finally, what should we do about the <code>NA</code> entries? We set them to zero, the (training set) mean. That may not be enough of an action though: It means we’re feeding the network roughly 30% misleading data. This is something we’re not done with yet.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>sst_train[<span class="fu">is.na</span>(sst_train)] <span class="ot">&lt;-</span> <span class="dv">0</span></span>
+<span id="cb19-2"><a href="#cb19-2" aria-hidden="true" tabindex="-1"></a>sst_valid[<span class="fu">is.na</span>(sst_valid)] <span class="ot">&lt;-</span> <span class="dv">0</span></span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="target" class="level2">
+<h2 class="anchored" data-anchor-id="target">Target</h2>
+<p>The target data are split analogously. Let’s check though: Are phases (categorizations) distributedly similarly in both sets?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>nino_train <span class="ot">&lt;-</span> nino <span class="sc">%&gt;%</span> <span class="fu">filter</span>(month <span class="sc">&lt;</span> <span class="fu">as.Date</span>(<span class="st">"1990-01-01"</span>))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>nino_valid <span class="ot">&lt;-</span> nino <span class="sc">%&gt;%</span> <span class="fu">filter</span>(month <span class="sc">&gt;=</span> <span class="fu">as.Date</span>(<span class="st">"1990-01-01"</span>))</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>nino_train <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(phase_code, PHASE) <span class="sc">%&gt;%</span> <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">avg =</span> <span class="fu">mean</span>(NINO34_MEAN))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code># A tibble: 3 x 4
+# Groups:   phase_code [3]
+  phase_code PHASE count   avg
+       &lt;dbl&gt; &lt;chr&gt; &lt;int&gt; &lt;dbl&gt;
+1          1 E       301  27.7
+2          2 L       333  25.6
+3          3 N       554  26.7</code></pre>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb22"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb22-1"><a href="#cb22-1" aria-hidden="true" tabindex="-1"></a>nino_valid <span class="sc">%&gt;%</span> <span class="fu">group_by</span>(phase_code, PHASE) <span class="sc">%&gt;%</span> <span class="fu">summarise</span>(<span class="at">count =</span> <span class="fu">n</span>(), <span class="at">avg =</span> <span class="fu">mean</span>(NINO34_MEAN))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code># A tibble: 3 x 4
+# Groups:   phase_code [3]
+  phase_code PHASE count   avg
+       &lt;dbl&gt; &lt;chr&gt; &lt;int&gt; &lt;dbl&gt;
+1          1 E        93  28.1
+2          2 L        93  25.9
+3          3 N       182  27.2</code></pre>
+<p>This doesn’t look too bad. Of course, we again see the overall rise in temperature, irrespective of phase.</p>
+<p>Lastly, we normalize the index, same as we did for the input data.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a>train_mean_nino <span class="ot">&lt;-</span> <span class="fu">mean</span>(nino_train<span class="sc">$</span>NINO34_MEAN)</span>
+<span id="cb24-2"><a href="#cb24-2" aria-hidden="true" tabindex="-1"></a>train_sd_nino <span class="ot">&lt;-</span> <span class="fu">sd</span>(nino_train<span class="sc">$</span>NINO34_MEAN)</span>
+<span id="cb24-3"><a href="#cb24-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb24-4"><a href="#cb24-4" aria-hidden="true" tabindex="-1"></a>nino_train <span class="ot">&lt;-</span> nino_train <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">NINO34_MEAN =</span> <span class="fu">scale</span>(NINO34_MEAN, <span class="at">center =</span> train_mean_nino, <span class="at">scale =</span> train_sd_nino))</span>
+<span id="cb24-5"><a href="#cb24-5" aria-hidden="true" tabindex="-1"></a>nino_valid <span class="ot">&lt;-</span> nino_valid <span class="sc">%&gt;%</span> <span class="fu">mutate</span>(<span class="at">NINO34_MEAN =</span> <span class="fu">scale</span>(NINO34_MEAN, <span class="at">center =</span> train_mean_nino, <span class="at">scale =</span> train_sd_nino))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>On to the <code>torch</code> dataset.</p>
+</section>
+</section>
+<section id="torch-dataset" class="level1">
+<h1><code>Torch</code> dataset</h1>
+<p>The dataset is responsible for correctly matching up inputs and targets.</p>
+<p>Our goal is to take six months of global sea surface temperatures and predict the Niño 3.4 Index for the following month. Input-wise, the model will expect the following format semantics:</p>
+<p><code>batch_size * timesteps * width * height * channels</code>, where</p>
+<ul>
+<li><p><code>batch_size</code> is the number of observations worked on in one round of computations,</p></li>
+<li><p><code>timesteps</code> chains consecutive observations from adjacent months,</p></li>
+<li><p><code>width</code> and <code>height</code> together constitute the spatial grid, and</p></li>
+<li><p><code>channels</code> corresponds to available visual channels in the “image”.</p></li>
+</ul>
+<p>In <code>.getitem()</code>, we select the consecutive observations, starting at a given index, and stack them in dimension one. (One, not two, as batches will only start to exist once the <code>dataloader</code> comes into play.)</p>
+<p>Now, what about the target? Our ultimate goal was – is – predicting the Niño 3.4 Index. However, as you see we define three targets: One is the index, as expected; an additional one holds the spatially-gridded sea surface temperatures for the prediction month. Why? Our main instrument, the most prominent constituent of the model, will be a convLSTM, an architecture designed for <em>spatial</em> prediction. Thus, to train it efficiently, we want to give it the opportunity to predict values on a spatial grid. So far so good; but there’s one more target, the phase/category. This was added for experimentation purposes: Maybe predicting <em>both</em> index <em>and</em> phase helps in training?</p>
+<p>Finally, here is the code for the dataset. In our experiments, we based predictions on inputs from the preceding six months (<code>n_timesteps &lt;- 6</code>). This is a parameter you might want to play with, though.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>n_timesteps <span class="ot">&lt;-</span> <span class="dv">6</span></span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>enso_dataset <span class="ot">&lt;-</span> <span class="fu">dataset</span>(</span>
+<span id="cb25-4"><a href="#cb25-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">name =</span> <span class="st">"enso_dataset"</span>,</span>
+<span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(sst, nino, n_timesteps) {</span>
+<span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>sst <span class="ot">&lt;-</span> sst</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>nino <span class="ot">&lt;-</span> nino</span>
+<span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>n_timesteps <span class="ot">&lt;-</span> n_timesteps</span>
+<span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">.getitem =</span> <span class="cf">function</span>(i) {</span>
+<span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a>    x <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(self<span class="sc">$</span>sst[, , i<span class="sc">:</span>(n_timesteps <span class="sc">+</span> i <span class="sc">-</span> <span class="dv">1</span>)]) <span class="co"># (360, 115, n_timesteps)</span></span>
+<span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>    x <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">permute</span>(<span class="fu">c</span>(<span class="dv">3</span>,<span class="dv">1</span>,<span class="dv">2</span>))<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">2</span>) <span class="co"># (n_timesteps, 1, 360, 115))</span></span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>    y1 <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(self<span class="sc">$</span>sst[, , n_timesteps <span class="sc">+</span> i])<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>) <span class="co"># (1, 360, 115)</span></span>
+<span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>    y2 <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(self<span class="sc">$</span>nino<span class="sc">$</span>NINO34_MEAN[n_timesteps <span class="sc">+</span> i])</span>
+<span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a>    y3 <span class="ot">&lt;-</span> <span class="fu">torch_tensor</span>(self<span class="sc">$</span>nino<span class="sc">$</span>phase_code[n_timesteps <span class="sc">+</span> i])<span class="sc">$</span><span class="fu">squeeze</span>()<span class="sc">$</span><span class="fu">to</span>(<span class="fu">torch_long</span>())</span>
+<span id="cb25-19"><a href="#cb25-19" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="at">x =</span> x, <span class="at">y1 =</span> y1, <span class="at">y2 =</span> y2, <span class="at">y3 =</span> y3)</span>
+<span id="cb25-20"><a href="#cb25-20" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb25-21"><a href="#cb25-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-22"><a href="#cb25-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">.length =</span> <span class="cf">function</span>() {</span>
+<span id="cb25-23"><a href="#cb25-23" aria-hidden="true" tabindex="-1"></a>    <span class="fu">nrow</span>(self<span class="sc">$</span>nino) <span class="sc">-</span> n_timesteps</span>
+<span id="cb25-24"><a href="#cb25-24" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb25-25"><a href="#cb25-25" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb25-26"><a href="#cb25-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb25-27"><a href="#cb25-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb25-28"><a href="#cb25-28" aria-hidden="true" tabindex="-1"></a>valid_ds <span class="ot">&lt;-</span> <span class="fu">enso_dataset</span>(sst_valid, nino_valid, n_timesteps)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="dataloaders" class="level1">
+<h1>Dataloaders</h1>
+<p>After the custom dataset, we create the – pretty typical – <code>dataloader</code>s, making use of a batch size of 4.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>batch_size <span class="ot">&lt;-</span> <span class="dv">4</span></span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>train_dl <span class="ot">&lt;-</span> train_ds <span class="sc">%&gt;%</span> <span class="fu">dataloader</span>(<span class="at">batch_size =</span> batch_size, <span class="at">shuffle =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>valid_dl <span class="ot">&lt;-</span> valid_ds <span class="sc">%&gt;%</span> <span class="fu">dataloader</span>(<span class="at">batch_size =</span> batch_size)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Next, we proceed to model creation.</p>
+</section>
+<section id="model" class="level1">
+<h1>Model</h1>
+<p>The model’s main ingredient is the convLSTM introduced in a <a href="https://blogs.rstudio.com/ai/posts/2020-12-17-torch-convlstm/">prior post</a>. For convenience, we reproduce the code in the appendix.</p>
+<p>Besides the convLSTM, the model makes use of three convolutional layers, a batchnorm layer and five linear layers. The logic is the following.</p>
+<p>First, the convLSTM job is to predict the next month’s sea surface temperatures on the spatial grid. For that, we <em>almost</em> just return its final state, - almost: We use <code>self$conv1</code> to reduce the number channels to one.</p>
+<p>For predicting index and phase, we then need to flatten the grid, as we require a single value each. This is where the additional conv layers come in. We <em>do</em> hope they’ll aid in learning, but we also want to reduce the number of parameters a bit, downsizing the grid (<code>strides = 2</code> and <code>strides = 3</code>, resp.) a bit before the upcoming <code>torch_flatten()</code>.</p>
+<p>Once we have a flat structure, learning is shared between the tasks of index and phase prediction (<code>self$linear</code>), until finally their paths split (<code>self$cont</code> and <code>self$cat</code>, resp.), and they return their separate outputs.</p>
+<p>(The batchnorm? I’ll comment on that in the <a href="#discussion">Discussion</a>.)</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb27"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb27-1"><a href="#cb27-1" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb27-2"><a href="#cb27-2" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb27-3"><a href="#cb27-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(channels_in,</span>
+<span id="cb27-4"><a href="#cb27-4" aria-hidden="true" tabindex="-1"></a>                        convlstm_hidden,</span>
+<span id="cb27-5"><a href="#cb27-5" aria-hidden="true" tabindex="-1"></a>                        convlstm_kernel,</span>
+<span id="cb27-6"><a href="#cb27-6" aria-hidden="true" tabindex="-1"></a>                        convlstm_layers) {</span>
+<span id="cb27-7"><a href="#cb27-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-8"><a href="#cb27-8" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>n_layers <span class="ot">&lt;-</span> convlstm_layers</span>
+<span id="cb27-9"><a href="#cb27-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-10"><a href="#cb27-10" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>convlstm <span class="ot">&lt;-</span> <span class="fu">convlstm</span>(</span>
+<span id="cb27-11"><a href="#cb27-11" aria-hidden="true" tabindex="-1"></a>      <span class="at">input_dim =</span> channels_in,</span>
+<span id="cb27-12"><a href="#cb27-12" aria-hidden="true" tabindex="-1"></a>      <span class="at">hidden_dims =</span> convlstm_hidden,</span>
+<span id="cb27-13"><a href="#cb27-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">kernel_sizes =</span> convlstm_kernel,</span>
+<span id="cb27-14"><a href="#cb27-14" aria-hidden="true" tabindex="-1"></a>      <span class="at">n_layers =</span> convlstm_layers</span>
+<span id="cb27-15"><a href="#cb27-15" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb27-16"><a href="#cb27-16" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-17"><a href="#cb27-17" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>conv1 <span class="ot">&lt;-</span></span>
+<span id="cb27-18"><a href="#cb27-18" aria-hidden="true" tabindex="-1"></a>      <span class="fu">nn_conv2d</span>(</span>
+<span id="cb27-19"><a href="#cb27-19" aria-hidden="true" tabindex="-1"></a>        <span class="at">in_channels =</span> <span class="dv">32</span>,</span>
+<span id="cb27-20"><a href="#cb27-20" aria-hidden="true" tabindex="-1"></a>        <span class="at">out_channels =</span> <span class="dv">1</span>,</span>
+<span id="cb27-21"><a href="#cb27-21" aria-hidden="true" tabindex="-1"></a>        <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb27-22"><a href="#cb27-22" aria-hidden="true" tabindex="-1"></a>        <span class="at">padding =</span> <span class="dv">2</span></span>
+<span id="cb27-23"><a href="#cb27-23" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb27-24"><a href="#cb27-24" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-25"><a href="#cb27-25" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>conv2 <span class="ot">&lt;-</span></span>
+<span id="cb27-26"><a href="#cb27-26" aria-hidden="true" tabindex="-1"></a>      <span class="fu">nn_conv2d</span>(</span>
+<span id="cb27-27"><a href="#cb27-27" aria-hidden="true" tabindex="-1"></a>        <span class="at">in_channels =</span> <span class="dv">32</span>,</span>
+<span id="cb27-28"><a href="#cb27-28" aria-hidden="true" tabindex="-1"></a>        <span class="at">out_channels =</span> <span class="dv">32</span>,</span>
+<span id="cb27-29"><a href="#cb27-29" aria-hidden="true" tabindex="-1"></a>        <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb27-30"><a href="#cb27-30" aria-hidden="true" tabindex="-1"></a>        <span class="at">stride =</span> <span class="dv">2</span></span>
+<span id="cb27-31"><a href="#cb27-31" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb27-32"><a href="#cb27-32" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-33"><a href="#cb27-33" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>conv3 <span class="ot">&lt;-</span></span>
+<span id="cb27-34"><a href="#cb27-34" aria-hidden="true" tabindex="-1"></a>      <span class="fu">nn_conv2d</span>(</span>
+<span id="cb27-35"><a href="#cb27-35" aria-hidden="true" tabindex="-1"></a>        <span class="at">in_channels =</span> <span class="dv">32</span>,</span>
+<span id="cb27-36"><a href="#cb27-36" aria-hidden="true" tabindex="-1"></a>        <span class="at">out_channels =</span> <span class="dv">32</span>,</span>
+<span id="cb27-37"><a href="#cb27-37" aria-hidden="true" tabindex="-1"></a>        <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb27-38"><a href="#cb27-38" aria-hidden="true" tabindex="-1"></a>        <span class="at">stride =</span> <span class="dv">3</span></span>
+<span id="cb27-39"><a href="#cb27-39" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb27-40"><a href="#cb27-40" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-41"><a href="#cb27-41" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>linear <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">33408</span>, <span class="dv">64</span>)</span>
+<span id="cb27-42"><a href="#cb27-42" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-43"><a href="#cb27-43" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>b1 <span class="ot">&lt;-</span> <span class="fu">nn_batch_norm1d</span>(<span class="at">num_features =</span> <span class="dv">64</span>)</span>
+<span id="cb27-44"><a href="#cb27-44" aria-hidden="true" tabindex="-1"></a>        </span>
+<span id="cb27-45"><a href="#cb27-45" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cont <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">64</span>, <span class="dv">128</span>)</span>
+<span id="cb27-46"><a href="#cb27-46" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cat <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">64</span>, <span class="dv">128</span>)</span>
+<span id="cb27-47"><a href="#cb27-47" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-48"><a href="#cb27-48" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cont_output <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">128</span>, <span class="dv">1</span>)</span>
+<span id="cb27-49"><a href="#cb27-49" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cat_output <span class="ot">&lt;-</span> <span class="fu">nn_linear</span>(<span class="dv">128</span>, <span class="dv">3</span>)</span>
+<span id="cb27-50"><a href="#cb27-50" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-51"><a href="#cb27-51" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb27-52"><a href="#cb27-52" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb27-53"><a href="#cb27-53" aria-hidden="true" tabindex="-1"></a>  <span class="at">forward =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb27-54"><a href="#cb27-54" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-55"><a href="#cb27-55" aria-hidden="true" tabindex="-1"></a>    ret <span class="ot">&lt;-</span> self<span class="sc">$</span><span class="fu">convlstm</span>(x)</span>
+<span id="cb27-56"><a href="#cb27-56" aria-hidden="true" tabindex="-1"></a>    layer_last_states <span class="ot">&lt;-</span> ret[[<span class="dv">2</span>]]</span>
+<span id="cb27-57"><a href="#cb27-57" aria-hidden="true" tabindex="-1"></a>    last_hidden <span class="ot">&lt;-</span> layer_last_states[[self<span class="sc">$</span>n_layers]][[<span class="dv">1</span>]]</span>
+<span id="cb27-58"><a href="#cb27-58" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-59"><a href="#cb27-59" aria-hidden="true" tabindex="-1"></a>    next_sst <span class="ot">&lt;-</span> last_hidden <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">conv1</span>() </span>
+<span id="cb27-60"><a href="#cb27-60" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-61"><a href="#cb27-61" aria-hidden="true" tabindex="-1"></a>    c2 <span class="ot">&lt;-</span> last_hidden <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">conv2</span>() </span>
+<span id="cb27-62"><a href="#cb27-62" aria-hidden="true" tabindex="-1"></a>    c3 <span class="ot">&lt;-</span> c2 <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">conv3</span>() </span>
+<span id="cb27-63"><a href="#cb27-63" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-64"><a href="#cb27-64" aria-hidden="true" tabindex="-1"></a>    flat <span class="ot">&lt;-</span> <span class="fu">torch_flatten</span>(c3, <span class="at">start_dim =</span> <span class="dv">2</span>)</span>
+<span id="cb27-65"><a href="#cb27-65" aria-hidden="true" tabindex="-1"></a>    common <span class="ot">&lt;-</span> self<span class="sc">$</span><span class="fu">linear</span>(flat) <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">b3</span>() <span class="sc">%&gt;%</span> <span class="fu">nnf_relu</span>()</span>
+<span id="cb27-66"><a href="#cb27-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb27-67"><a href="#cb27-67" aria-hidden="true" tabindex="-1"></a>    next_temp <span class="ot">&lt;-</span> common <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">cont</span>() <span class="sc">%&gt;%</span> <span class="fu">nnf_relu</span>() <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">cont_output</span>()</span>
+<span id="cb27-68"><a href="#cb27-68" aria-hidden="true" tabindex="-1"></a>    next_nino <span class="ot">&lt;-</span> common <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">cat</span>() <span class="sc">%&gt;%</span> <span class="fu">nnf_relu</span>() <span class="sc">%&gt;%</span> self<span class="sc">$</span><span class="fu">cat_output</span>()</span>
+<span id="cb27-69"><a href="#cb27-69" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-70"><a href="#cb27-70" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(next_sst, next_temp, next_nino)</span>
+<span id="cb27-71"><a href="#cb27-71" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb27-72"><a href="#cb27-72" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb27-73"><a href="#cb27-73" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb27-74"><a href="#cb27-74" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Next, we instantiate a pretty small-ish model. You’re more than welcome to experiment with larger models, but training time as well as GPU memory requirements will increase.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>net <span class="ot">&lt;-</span> <span class="fu">model</span>(</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">channels_in =</span> <span class="dv">1</span>,</span>
+<span id="cb28-3"><a href="#cb28-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">convlstm_hidden =</span> <span class="fu">c</span>(<span class="dv">16</span>, <span class="dv">16</span>, <span class="dv">32</span>),</span>
+<span id="cb28-4"><a href="#cb28-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">convlstm_kernel =</span> <span class="fu">c</span>(<span class="dv">3</span>, <span class="dv">3</span>, <span class="dv">5</span>),</span>
+<span id="cb28-5"><a href="#cb28-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">convlstm_layers =</span> <span class="dv">3</span></span>
+<span id="cb28-6"><a href="#cb28-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb28-7"><a href="#cb28-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-8"><a href="#cb28-8" aria-hidden="true" tabindex="-1"></a>device <span class="ot">&lt;-</span> <span class="fu">torch_device</span>(<span class="cf">if</span> (<span class="fu">cuda_is_available</span>()) <span class="st">"cuda"</span> <span class="cf">else</span> <span class="st">"cpu"</span>)</span>
+<span id="cb28-9"><a href="#cb28-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb28-10"><a href="#cb28-10" aria-hidden="true" tabindex="-1"></a>net <span class="ot">&lt;-</span> net<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device)</span>
+<span id="cb28-11"><a href="#cb28-11" aria-hidden="true" tabindex="-1"></a>net</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>An `nn_module` containing 2,389,605 parameters.
+
+── Modules ───────────────────────────────────────────────────────────────────────────────
+● convlstm: &lt;nn_module&gt; #182,080 parameters
+● conv1: &lt;nn_conv2d&gt; #801 parameters
+● conv2: &lt;nn_conv2d&gt; #25,632 parameters
+● conv3: &lt;nn_conv2d&gt; #25,632 parameters
+● linear: &lt;nn_linear&gt; #2,138,176 parameters
+● b1: &lt;nn_batch_norm1d&gt; #128 parameters
+● cont: &lt;nn_linear&gt; #8,320 parameters
+● cat: &lt;nn_linear&gt; #8,320 parameters
+● cont_output: &lt;nn_linear&gt; #129 parameters
+● cat_output: &lt;nn_linear&gt; #387 parameters</code></pre>
+</section>
+<section id="training" class="level1">
+<h1>Training</h1>
+<p>We have three model outputs. How should we combine the losses?</p>
+<p>Given that the main goal is predicting the index, and the other two outputs are essentially means to an end, I found the following combination rather effective:</p>
+<pre><code># weight for sea surface temperature prediction
+lw_sst &lt;- 0.2
+
+# weight for prediction of El Nino 3.4 Index
+lw_temp &lt;- 0.4
+
+# weight for phase prediction
+lw_nino &lt;- 0.4</code></pre>
+<p>The training process follows the pattern seen in all <code>torch</code> posts so far: For each epoch, loop over the training set, backpropagate, check performance on validation set.</p>
+<p><em>But</em>, when we did the pre-processing, we were aware of an imminent problem: the missing temperatures for continental areas, which we set to zero. As a sole measure, this approach is clearly insufficient. What if we had chosen to use latitude-dependent averages? Or interpolation? Both may be better than a global average, but both have their problems as well. Let’s at least alleviate negative consequences by not using the respective pixels for spatial loss calculation. This is taken care of by the following line below:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>sst_loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(sst_output[sst_target <span class="sc">!=</span> <span class="dv">0</span>], sst_target[sst_target <span class="sc">!=</span> <span class="dv">0</span>])</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Here, then, is the complete training code.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a>optimizer <span class="ot">&lt;-</span> <span class="fu">optim_adam</span>(net<span class="sc">$</span>parameters, <span class="at">lr =</span> <span class="fl">0.001</span>)</span>
+<span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-3"><a href="#cb32-3" aria-hidden="true" tabindex="-1"></a>num_epochs <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb32-4"><a href="#cb32-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-5"><a href="#cb32-5" aria-hidden="true" tabindex="-1"></a>train_batch <span class="ot">&lt;-</span> <span class="cf">function</span>(b) {</span>
+<span id="cb32-6"><a href="#cb32-6" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-7"><a href="#cb32-7" aria-hidden="true" tabindex="-1"></a>  optimizer<span class="sc">$</span><span class="fu">zero_grad</span>()</span>
+<span id="cb32-8"><a href="#cb32-8" aria-hidden="true" tabindex="-1"></a>  output <span class="ot">&lt;-</span> <span class="fu">net</span>(b<span class="sc">$</span>x<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-9"><a href="#cb32-9" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-10"><a href="#cb32-10" aria-hidden="true" tabindex="-1"></a>  sst_output <span class="ot">&lt;-</span> output[[<span class="dv">1</span>]]</span>
+<span id="cb32-11"><a href="#cb32-11" aria-hidden="true" tabindex="-1"></a>  sst_target <span class="ot">&lt;-</span> b<span class="sc">$</span>y1<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device)</span>
+<span id="cb32-12"><a href="#cb32-12" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-13"><a href="#cb32-13" aria-hidden="true" tabindex="-1"></a>  sst_loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(sst_output[sst_target <span class="sc">!=</span> <span class="dv">0</span>], sst_target[sst_target <span class="sc">!=</span> <span class="dv">0</span>])</span>
+<span id="cb32-14"><a href="#cb32-14" aria-hidden="true" tabindex="-1"></a>  temp_loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(output[[<span class="dv">2</span>]], b<span class="sc">$</span>y2<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-15"><a href="#cb32-15" aria-hidden="true" tabindex="-1"></a>  nino_loss <span class="ot">&lt;-</span> <span class="fu">nnf_cross_entropy</span>(output[[<span class="dv">3</span>]], b<span class="sc">$</span>y3<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-16"><a href="#cb32-16" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-17"><a href="#cb32-17" aria-hidden="true" tabindex="-1"></a>  loss <span class="ot">&lt;-</span> lw_sst <span class="sc">*</span> sst_loss <span class="sc">+</span> lw_temp <span class="sc">*</span> temp_loss <span class="sc">+</span> lw_nino <span class="sc">*</span> nino_loss</span>
+<span id="cb32-18"><a href="#cb32-18" aria-hidden="true" tabindex="-1"></a>  loss<span class="sc">$</span><span class="fu">backward</span>()</span>
+<span id="cb32-19"><a href="#cb32-19" aria-hidden="true" tabindex="-1"></a>  optimizer<span class="sc">$</span><span class="fu">step</span>()</span>
+<span id="cb32-20"><a href="#cb32-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-21"><a href="#cb32-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(sst_loss<span class="sc">$</span><span class="fu">item</span>(), temp_loss<span class="sc">$</span><span class="fu">item</span>(), nino_loss<span class="sc">$</span><span class="fu">item</span>(), loss<span class="sc">$</span><span class="fu">item</span>())</span>
+<span id="cb32-22"><a href="#cb32-22" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-23"><a href="#cb32-23" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb32-24"><a href="#cb32-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-25"><a href="#cb32-25" aria-hidden="true" tabindex="-1"></a>valid_batch <span class="ot">&lt;-</span> <span class="cf">function</span>(b) {</span>
+<span id="cb32-26"><a href="#cb32-26" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-27"><a href="#cb32-27" aria-hidden="true" tabindex="-1"></a>  output <span class="ot">&lt;-</span> <span class="fu">net</span>(b<span class="sc">$</span>x<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-28"><a href="#cb32-28" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-29"><a href="#cb32-29" aria-hidden="true" tabindex="-1"></a>  sst_output <span class="ot">&lt;-</span> output[[<span class="dv">1</span>]]</span>
+<span id="cb32-30"><a href="#cb32-30" aria-hidden="true" tabindex="-1"></a>  sst_target <span class="ot">&lt;-</span> b<span class="sc">$</span>y1<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device)</span>
+<span id="cb32-31"><a href="#cb32-31" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-32"><a href="#cb32-32" aria-hidden="true" tabindex="-1"></a>  sst_loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(sst_output[sst_target <span class="sc">!=</span> <span class="dv">0</span>], sst_target[sst_target <span class="sc">!=</span> <span class="dv">0</span>])</span>
+<span id="cb32-33"><a href="#cb32-33" aria-hidden="true" tabindex="-1"></a>  temp_loss <span class="ot">&lt;-</span> <span class="fu">nnf_mse_loss</span>(output[[<span class="dv">2</span>]], b<span class="sc">$</span>y2<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-34"><a href="#cb32-34" aria-hidden="true" tabindex="-1"></a>  nino_loss <span class="ot">&lt;-</span> <span class="fu">nnf_cross_entropy</span>(output[[<span class="dv">3</span>]], b<span class="sc">$</span>y3<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb32-35"><a href="#cb32-35" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-36"><a href="#cb32-36" aria-hidden="true" tabindex="-1"></a>  loss <span class="ot">&lt;-</span></span>
+<span id="cb32-37"><a href="#cb32-37" aria-hidden="true" tabindex="-1"></a>    lw_sst <span class="sc">*</span> sst_loss <span class="sc">+</span> lw_temp <span class="sc">*</span> temp_loss <span class="sc">+</span> lw_nino <span class="sc">*</span> nino_loss</span>
+<span id="cb32-38"><a href="#cb32-38" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-39"><a href="#cb32-39" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(sst_loss<span class="sc">$</span><span class="fu">item</span>(),</span>
+<span id="cb32-40"><a href="#cb32-40" aria-hidden="true" tabindex="-1"></a>       temp_loss<span class="sc">$</span><span class="fu">item</span>(),</span>
+<span id="cb32-41"><a href="#cb32-41" aria-hidden="true" tabindex="-1"></a>       nino_loss<span class="sc">$</span><span class="fu">item</span>(),</span>
+<span id="cb32-42"><a href="#cb32-42" aria-hidden="true" tabindex="-1"></a>       loss<span class="sc">$</span><span class="fu">item</span>())</span>
+<span id="cb32-43"><a href="#cb32-43" aria-hidden="true" tabindex="-1"></a>}</span>
+<span id="cb32-44"><a href="#cb32-44" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-45"><a href="#cb32-45" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (epoch <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>num_epochs) {</span>
+<span id="cb32-46"><a href="#cb32-46" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-47"><a href="#cb32-47" aria-hidden="true" tabindex="-1"></a>  net<span class="sc">$</span><span class="fu">train</span>()</span>
+<span id="cb32-48"><a href="#cb32-48" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-49"><a href="#cb32-49" aria-hidden="true" tabindex="-1"></a>  train_loss_sst <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-50"><a href="#cb32-50" aria-hidden="true" tabindex="-1"></a>  train_loss_temp <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-51"><a href="#cb32-51" aria-hidden="true" tabindex="-1"></a>  train_loss_nino <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-52"><a href="#cb32-52" aria-hidden="true" tabindex="-1"></a>  train_loss <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-53"><a href="#cb32-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-54"><a href="#cb32-54" aria-hidden="true" tabindex="-1"></a>  coro<span class="sc">::</span><span class="fu">loop</span>(<span class="cf">for</span> (b <span class="cf">in</span> train_dl) {</span>
+<span id="cb32-55"><a href="#cb32-55" aria-hidden="true" tabindex="-1"></a>    losses <span class="ot">&lt;-</span> <span class="fu">train_batch</span>(b)</span>
+<span id="cb32-56"><a href="#cb32-56" aria-hidden="true" tabindex="-1"></a>    train_loss_sst <span class="ot">&lt;-</span> <span class="fu">c</span>(train_loss_sst, losses[[<span class="dv">1</span>]])</span>
+<span id="cb32-57"><a href="#cb32-57" aria-hidden="true" tabindex="-1"></a>    train_loss_temp <span class="ot">&lt;-</span> <span class="fu">c</span>(train_loss_temp, losses[[<span class="dv">2</span>]])</span>
+<span id="cb32-58"><a href="#cb32-58" aria-hidden="true" tabindex="-1"></a>    train_loss_nino <span class="ot">&lt;-</span> <span class="fu">c</span>(train_loss_nino, losses[[<span class="dv">3</span>]])</span>
+<span id="cb32-59"><a href="#cb32-59" aria-hidden="true" tabindex="-1"></a>    train_loss <span class="ot">&lt;-</span> <span class="fu">c</span>(train_loss, losses[[<span class="dv">4</span>]])</span>
+<span id="cb32-60"><a href="#cb32-60" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb32-61"><a href="#cb32-61" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-62"><a href="#cb32-62" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(</span>
+<span id="cb32-63"><a href="#cb32-63" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(</span>
+<span id="cb32-64"><a href="#cb32-64" aria-hidden="true" tabindex="-1"></a>      <span class="st">"</span><span class="sc">\n</span><span class="st">Epoch %d, training: loss: %3.3f sst: %3.3f temp: %3.3f nino: %3.3f </span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb32-65"><a href="#cb32-65" aria-hidden="true" tabindex="-1"></a>      epoch, <span class="fu">mean</span>(train_loss), <span class="fu">mean</span>(train_loss_sst), <span class="fu">mean</span>(train_loss_temp), <span class="fu">mean</span>(train_loss_nino)</span>
+<span id="cb32-66"><a href="#cb32-66" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb32-67"><a href="#cb32-67" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb32-68"><a href="#cb32-68" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-69"><a href="#cb32-69" aria-hidden="true" tabindex="-1"></a>  net<span class="sc">$</span><span class="fu">eval</span>()</span>
+<span id="cb32-70"><a href="#cb32-70" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-71"><a href="#cb32-71" aria-hidden="true" tabindex="-1"></a>  valid_loss_sst <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-72"><a href="#cb32-72" aria-hidden="true" tabindex="-1"></a>  valid_loss_temp <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-73"><a href="#cb32-73" aria-hidden="true" tabindex="-1"></a>  valid_loss_nino <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-74"><a href="#cb32-74" aria-hidden="true" tabindex="-1"></a>  valid_loss <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb32-75"><a href="#cb32-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb32-76"><a href="#cb32-76" aria-hidden="true" tabindex="-1"></a>  coro<span class="sc">::</span><span class="fu">loop</span>(<span class="cf">for</span> (b <span class="cf">in</span> valid_dl) {</span>
+<span id="cb32-77"><a href="#cb32-77" aria-hidden="true" tabindex="-1"></a>    losses <span class="ot">&lt;-</span> <span class="fu">valid_batch</span>(b)</span>
+<span id="cb32-78"><a href="#cb32-78" aria-hidden="true" tabindex="-1"></a>    valid_loss_sst <span class="ot">&lt;-</span> <span class="fu">c</span>(valid_loss_sst, losses[[<span class="dv">1</span>]])</span>
+<span id="cb32-79"><a href="#cb32-79" aria-hidden="true" tabindex="-1"></a>    valid_loss_temp <span class="ot">&lt;-</span> <span class="fu">c</span>(valid_loss_temp, losses[[<span class="dv">2</span>]])</span>
+<span id="cb32-80"><a href="#cb32-80" aria-hidden="true" tabindex="-1"></a>    valid_loss_nino <span class="ot">&lt;-</span> <span class="fu">c</span>(valid_loss_nino, losses[[<span class="dv">3</span>]])</span>
+<span id="cb32-81"><a href="#cb32-81" aria-hidden="true" tabindex="-1"></a>    valid_loss <span class="ot">&lt;-</span> <span class="fu">c</span>(valid_loss, losses[[<span class="dv">4</span>]])</span>
+<span id="cb32-82"><a href="#cb32-82" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb32-83"><a href="#cb32-83" aria-hidden="true" tabindex="-1"></a>  })</span>
+<span id="cb32-84"><a href="#cb32-84" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-85"><a href="#cb32-85" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(</span>
+<span id="cb32-86"><a href="#cb32-86" aria-hidden="true" tabindex="-1"></a>    <span class="fu">sprintf</span>(</span>
+<span id="cb32-87"><a href="#cb32-87" aria-hidden="true" tabindex="-1"></a>      <span class="st">"</span><span class="sc">\n</span><span class="st">Epoch %d, validation: loss: %3.3f sst: %3.3f temp: %3.3f nino: %3.3f </span><span class="sc">\n</span><span class="st">"</span>,</span>
+<span id="cb32-88"><a href="#cb32-88" aria-hidden="true" tabindex="-1"></a>      epoch, <span class="fu">mean</span>(valid_loss), <span class="fu">mean</span>(valid_loss_sst), <span class="fu">mean</span>(valid_loss_temp), <span class="fu">mean</span>(valid_loss_nino)</span>
+<span id="cb32-89"><a href="#cb32-89" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb32-90"><a href="#cb32-90" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb32-91"><a href="#cb32-91" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-92"><a href="#cb32-92" aria-hidden="true" tabindex="-1"></a>  <span class="fu">torch_save</span>(net, <span class="fu">paste0</span>(</span>
+<span id="cb32-93"><a href="#cb32-93" aria-hidden="true" tabindex="-1"></a>    <span class="st">"model_"</span>, epoch, <span class="st">"_"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(train_loss), <span class="dv">3</span>), <span class="st">"_"</span>, <span class="fu">round</span>(<span class="fu">mean</span>(valid_loss), <span class="dv">3</span>), <span class="st">".pt"</span></span>
+<span id="cb32-94"><a href="#cb32-94" aria-hidden="true" tabindex="-1"></a>  ))</span>
+<span id="cb32-95"><a href="#cb32-95" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb32-96"><a href="#cb32-96" aria-hidden="true" tabindex="-1"></a>}</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>When I ran this, performance on the training set decreased in a not-too-fast, but continuous way, while validation set performance kept fluctuating. For reference, total (composite) losses looked like this:</p>
+<pre><code>Epoch     Training    Validation
+   
+   10        0.336         0.633
+   20        0.233         0.295
+   30        0.135         0.461
+   40        0.099         0.903
+   50        0.061         0.727</code></pre>
+<p>Thinking of the size of the validation set - thirty-one years, or equivalently, 372 data points – those fluctuations may not be all too surprising.</p>
+</section>
+<section id="predictions" class="level1">
+<h1>Predictions</h1>
+<p>Now losses tend to be abstract; let’s see what actually gets predicted. We obtain predictions for index values and phases like so …</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a>net<span class="sc">$</span><span class="fu">eval</span>()</span>
+<span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>pred_index <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>pred_phase <span class="ot">&lt;-</span> <span class="fu">c</span>()</span>
+<span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>coro<span class="sc">::</span><span class="fu">loop</span>(<span class="cf">for</span> (b <span class="cf">in</span> valid_dl) {</span>
+<span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a>  output <span class="ot">&lt;-</span> <span class="fu">net</span>(b<span class="sc">$</span>x<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> device))</span>
+<span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>  pred_index <span class="ot">&lt;-</span> <span class="fu">c</span>(pred_index, output[[<span class="dv">2</span>]]<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> <span class="st">"cpu"</span>))</span>
+<span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>  pred_phase <span class="ot">&lt;-</span> <span class="fu">rbind</span>(pred_phase, <span class="fu">as.matrix</span>(output[[<span class="dv">3</span>]]<span class="sc">$</span><span class="fu">to</span>(<span class="at">device =</span> <span class="st">"cpu"</span>)))</span>
+<span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a>})</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>… and combine these with the ground truth, stripping off the first six rows (six was the number of timesteps used as predictors):</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>valid_perf <span class="ot">&lt;-</span> <span class="fu">data.frame</span>(</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">actual_temp =</span> nino_valid<span class="sc">$</span>NINO34_MEAN[(batch_size <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">nrow</span>(nino_valid)] <span class="sc">*</span> train_sd_nino <span class="sc">+</span> train_mean_nino,</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">actual_nino =</span> <span class="fu">factor</span>(nino_valid<span class="sc">$</span>phase_code[(batch_size <span class="sc">+</span> <span class="dv">1</span>)<span class="sc">:</span><span class="fu">nrow</span>(nino_valid)]),</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">pred_temp =</span> pred_index <span class="sc">*</span> train_sd_nino <span class="sc">+</span> train_mean_nino,</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">pred_nino =</span> <span class="fu">factor</span>(pred_phase <span class="sc">%&gt;%</span> <span class="fu">apply</span>(<span class="dv">1</span>, which.max))</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>For the phase, we can generate a confusion matrix:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb36"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb36-1"><a href="#cb36-1" aria-hidden="true" tabindex="-1"></a>yardstick<span class="sc">::</span><span class="fu">conf_mat</span>(valid_perf, actual_nino, pred_nino)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>          Truth
+Prediction   1   2   3
+         1  70   0  43
+         2   0  47  10
+         3  23  46 123</code></pre>
+<p>This looks better than expected (based on the losses). Phases 1 and 2 correspond to El Niño and La Niña, respectively, and these get sharply separated.</p>
+<p>What about the Niño 3.4 Index? Let’s plot predictions versus ground truth:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb38"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb38-1"><a href="#cb38-1" aria-hidden="true" tabindex="-1"></a>valid_perf <span class="ot">&lt;-</span> valid_perf <span class="sc">%&gt;%</span> </span>
+<span id="cb38-2"><a href="#cb38-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">select</span>(<span class="at">actual =</span> actual_temp, <span class="at">predicted =</span> pred_temp) <span class="sc">%&gt;%</span> </span>
+<span id="cb38-3"><a href="#cb38-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">add_column</span>(<span class="at">month =</span> <span class="fu">seq</span>(<span class="fu">as.Date</span>(<span class="st">"1990-07-01"</span>), <span class="fu">as.Date</span>(<span class="st">"2020-08-01"</span>), <span class="at">by =</span> <span class="st">"months"</span>)) <span class="sc">%&gt;%</span></span>
+<span id="cb38-4"><a href="#cb38-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">pivot_longer</span>(<span class="sc">-</span>month, <span class="at">names_to =</span> <span class="st">"Index"</span>, <span class="at">values_to =</span> <span class="st">"temperature"</span>)</span>
+<span id="cb38-5"><a href="#cb38-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb38-6"><a href="#cb38-6" aria-hidden="true" tabindex="-1"></a><span class="fu">ggplot</span>(valid_perf, <span class="fu">aes</span>(<span class="at">x =</span> month, <span class="at">y =</span> temperature, <span class="at">color =</span> Index)) <span class="sc">+</span></span>
+<span id="cb38-7"><a href="#cb38-7" aria-hidden="true" tabindex="-1"></a>  <span class="fu">geom_line</span>() <span class="sc">+</span></span>
+<span id="cb38-8"><a href="#cb38-8" aria-hidden="true" tabindex="-1"></a>  <span class="fu">scale_color_manual</span>(<span class="at">values =</span> <span class="fu">c</span>(<span class="st">"#006D6F"</span>, <span class="st">"#B2FFFF"</span>)) <span class="sc">+</span></span>
+<span id="cb38-9"><a href="#cb38-9" aria-hidden="true" tabindex="-1"></a>  <span class="fu">theme_classic</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="preds.png" class="img-fluid figure-img" width="600"></p>
+<p></p><figcaption class="figure-caption">Nino 3.4 Index: Ground truth vs.&nbsp;predictions (validation set).</figcaption><p></p>
+</figure>
+</div>
+</div>
+</div>
+<p>This does not look bad either. However, we need to keep in mind that we’re predicting just a single time step ahead. We probably should not overestimate the results. Which leads directly to the discussion.</p>
+</section>
+<section id="discussion" class="level1">
+<h1>Discussion</h1>
+<p>When working with small amounts of data, a lot can be learned by quick-ish experimentation. However, when <em>at the same time</em>, the task is complex, one should be cautious extrapolating.</p>
+<p>For example, well-established regularizers such as batchnorm and dropout, while intended to improve generalization to the validation set, may turn out to severely impede training itself. This is the story behind the one batchnorm layer I kept (I did try having more), and it is also why there is no dropout.</p>
+<p>One lesson to learn from this experience then is: Make sure the amount of data matches the complexity of the task. This is what we see in the ENSO prediction papers published on arxiv.</p>
+<p>If we should treat the results with caution, why even publish the post?</p>
+<p>For one, it shows an application of convLSTM to real-world data, employing a reasonably complex architecture and illustrating techniques like custom losses and loss masking. Similar architectures and strategies should be applicable to a wide range of real-world tasks – basically, whenever predictors in a time-series problem are given on a spatial grid.</p>
+<p>Secondly, the application itself – forecasting an atmospheric phenomenon that greatly affects ecosystems as well as human well-being – seems like an excellent use of deep learning. Applications like these stand out as all the more worthwhile as the same cannot be said of everything deep learning is – and will be, barring effective regulation – used for.</p>
+<p>Thanks for reading!</p>
+</section>
+<section id="appendix-convlstm-code" class="level1">
+<h1>Appendix: <code>convlstm</code> code</h1>
+<p>For an in-depth explanation of <code>convlstm</code>, see <a href="https://blogs.rstudio.com/ai/posts/2020-12-17-torch-convlstm/">the blog post</a>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torchvision)</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-4"><a href="#cb39-4" aria-hidden="true" tabindex="-1"></a>convlstm_cell <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb39-5"><a href="#cb39-5" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-6"><a href="#cb39-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(input_dim, hidden_dim, kernel_size, bias) {</span>
+<span id="cb39-7"><a href="#cb39-7" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-8"><a href="#cb39-8" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>hidden_dim <span class="ot">&lt;-</span> hidden_dim</span>
+<span id="cb39-9"><a href="#cb39-9" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-10"><a href="#cb39-10" aria-hidden="true" tabindex="-1"></a>    padding <span class="ot">&lt;-</span> kernel_size <span class="sc">%/%</span> <span class="dv">2</span></span>
+<span id="cb39-11"><a href="#cb39-11" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-12"><a href="#cb39-12" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>conv <span class="ot">&lt;-</span> <span class="fu">nn_conv2d</span>(</span>
+<span id="cb39-13"><a href="#cb39-13" aria-hidden="true" tabindex="-1"></a>      <span class="at">in_channels =</span> input_dim <span class="sc">+</span> self<span class="sc">$</span>hidden_dim,</span>
+<span id="cb39-14"><a href="#cb39-14" aria-hidden="true" tabindex="-1"></a>      <span class="co"># for each of input, forget, output, and cell gates</span></span>
+<span id="cb39-15"><a href="#cb39-15" aria-hidden="true" tabindex="-1"></a>      <span class="at">out_channels =</span> <span class="dv">4</span> <span class="sc">*</span> self<span class="sc">$</span>hidden_dim,</span>
+<span id="cb39-16"><a href="#cb39-16" aria-hidden="true" tabindex="-1"></a>      <span class="at">kernel_size =</span> kernel_size,</span>
+<span id="cb39-17"><a href="#cb39-17" aria-hidden="true" tabindex="-1"></a>      <span class="at">padding =</span> padding,</span>
+<span id="cb39-18"><a href="#cb39-18" aria-hidden="true" tabindex="-1"></a>      <span class="at">bias =</span> bias</span>
+<span id="cb39-19"><a href="#cb39-19" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb39-20"><a href="#cb39-20" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb39-21"><a href="#cb39-21" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-22"><a href="#cb39-22" aria-hidden="true" tabindex="-1"></a>  <span class="at">forward =</span> <span class="cf">function</span>(x, prev_states) {</span>
+<span id="cb39-23"><a href="#cb39-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-24"><a href="#cb39-24" aria-hidden="true" tabindex="-1"></a>    h_prev <span class="ot">&lt;-</span> prev_states[[<span class="dv">1</span>]]</span>
+<span id="cb39-25"><a href="#cb39-25" aria-hidden="true" tabindex="-1"></a>    c_prev <span class="ot">&lt;-</span> prev_states[[<span class="dv">2</span>]]</span>
+<span id="cb39-26"><a href="#cb39-26" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-27"><a href="#cb39-27" aria-hidden="true" tabindex="-1"></a>    combined <span class="ot">&lt;-</span> <span class="fu">torch_cat</span>(<span class="fu">list</span>(x, h_prev), <span class="at">dim =</span> <span class="dv">2</span>)  <span class="co"># concatenate along channel axis</span></span>
+<span id="cb39-28"><a href="#cb39-28" aria-hidden="true" tabindex="-1"></a>    combined_conv <span class="ot">&lt;-</span> self<span class="sc">$</span><span class="fu">conv</span>(combined)</span>
+<span id="cb39-29"><a href="#cb39-29" aria-hidden="true" tabindex="-1"></a>    gate_convs <span class="ot">&lt;-</span> <span class="fu">torch_split</span>(combined_conv, self<span class="sc">$</span>hidden_dim, <span class="at">dim =</span> <span class="dv">2</span>)</span>
+<span id="cb39-30"><a href="#cb39-30" aria-hidden="true" tabindex="-1"></a>    cc_i <span class="ot">&lt;-</span> gate_convs[[<span class="dv">1</span>]]</span>
+<span id="cb39-31"><a href="#cb39-31" aria-hidden="true" tabindex="-1"></a>    cc_f <span class="ot">&lt;-</span> gate_convs[[<span class="dv">2</span>]]</span>
+<span id="cb39-32"><a href="#cb39-32" aria-hidden="true" tabindex="-1"></a>    cc_o <span class="ot">&lt;-</span> gate_convs[[<span class="dv">3</span>]]</span>
+<span id="cb39-33"><a href="#cb39-33" aria-hidden="true" tabindex="-1"></a>    cc_g <span class="ot">&lt;-</span> gate_convs[[<span class="dv">4</span>]]</span>
+<span id="cb39-34"><a href="#cb39-34" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-35"><a href="#cb39-35" aria-hidden="true" tabindex="-1"></a>    <span class="co"># input, forget, output, and cell gates (corresponding to torch's LSTM)</span></span>
+<span id="cb39-36"><a href="#cb39-36" aria-hidden="true" tabindex="-1"></a>    i <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_i)</span>
+<span id="cb39-37"><a href="#cb39-37" aria-hidden="true" tabindex="-1"></a>    f <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_f)</span>
+<span id="cb39-38"><a href="#cb39-38" aria-hidden="true" tabindex="-1"></a>    o <span class="ot">&lt;-</span> <span class="fu">torch_sigmoid</span>(cc_o)</span>
+<span id="cb39-39"><a href="#cb39-39" aria-hidden="true" tabindex="-1"></a>    g <span class="ot">&lt;-</span> <span class="fu">torch_tanh</span>(cc_g)</span>
+<span id="cb39-40"><a href="#cb39-40" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-41"><a href="#cb39-41" aria-hidden="true" tabindex="-1"></a>    <span class="co"># cell state</span></span>
+<span id="cb39-42"><a href="#cb39-42" aria-hidden="true" tabindex="-1"></a>    c_next <span class="ot">&lt;-</span> f <span class="sc">*</span> c_prev <span class="sc">+</span> i <span class="sc">*</span> g</span>
+<span id="cb39-43"><a href="#cb39-43" aria-hidden="true" tabindex="-1"></a>    <span class="co"># hidden state</span></span>
+<span id="cb39-44"><a href="#cb39-44" aria-hidden="true" tabindex="-1"></a>    h_next <span class="ot">&lt;-</span> o <span class="sc">*</span> <span class="fu">torch_tanh</span>(c_next)</span>
+<span id="cb39-45"><a href="#cb39-45" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-46"><a href="#cb39-46" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(h_next, c_next)</span>
+<span id="cb39-47"><a href="#cb39-47" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-48"><a href="#cb39-48" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb39-49"><a href="#cb39-49" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-50"><a href="#cb39-50" aria-hidden="true" tabindex="-1"></a>  <span class="at">init_hidden =</span> <span class="cf">function</span>(batch_size, height, width) {</span>
+<span id="cb39-51"><a href="#cb39-51" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(<span class="fu">torch_zeros</span>(batch_size, self<span class="sc">$</span>hidden_dim, height, width, <span class="at">device =</span> self<span class="sc">$</span>conv<span class="sc">$</span>weight<span class="sc">$</span>device),</span>
+<span id="cb39-52"><a href="#cb39-52" aria-hidden="true" tabindex="-1"></a>         <span class="fu">torch_zeros</span>(batch_size, self<span class="sc">$</span>hidden_dim, height, width, <span class="at">device =</span> self<span class="sc">$</span>conv<span class="sc">$</span>weight<span class="sc">$</span>device))</span>
+<span id="cb39-53"><a href="#cb39-53" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb39-54"><a href="#cb39-54" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb39-55"><a href="#cb39-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-56"><a href="#cb39-56" aria-hidden="true" tabindex="-1"></a>convlstm <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb39-57"><a href="#cb39-57" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-58"><a href="#cb39-58" aria-hidden="true" tabindex="-1"></a>  <span class="at">initialize =</span> <span class="cf">function</span>(input_dim, hidden_dims, kernel_sizes, n_layers, <span class="at">bias =</span> <span class="cn">TRUE</span>) {</span>
+<span id="cb39-59"><a href="#cb39-59" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb39-60"><a href="#cb39-60" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>n_layers <span class="ot">&lt;-</span> n_layers</span>
+<span id="cb39-61"><a href="#cb39-61" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-62"><a href="#cb39-62" aria-hidden="true" tabindex="-1"></a>    self<span class="sc">$</span>cell_list <span class="ot">&lt;-</span> <span class="fu">nn_module_list</span>()</span>
+<span id="cb39-63"><a href="#cb39-63" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-64"><a href="#cb39-64" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>n_layers) {</span>
+<span id="cb39-65"><a href="#cb39-65" aria-hidden="true" tabindex="-1"></a>      cur_input_dim <span class="ot">&lt;-</span> <span class="cf">if</span> (i <span class="sc">==</span> <span class="dv">1</span>) input_dim <span class="cf">else</span> hidden_dims[i <span class="sc">-</span> <span class="dv">1</span>]</span>
+<span id="cb39-66"><a href="#cb39-66" aria-hidden="true" tabindex="-1"></a>      self<span class="sc">$</span>cell_list<span class="sc">$</span><span class="fu">append</span>(<span class="fu">convlstm_cell</span>(cur_input_dim, hidden_dims[i], kernel_sizes[i], bias))</span>
+<span id="cb39-67"><a href="#cb39-67" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb39-68"><a href="#cb39-68" aria-hidden="true" tabindex="-1"></a>  },</span>
+<span id="cb39-69"><a href="#cb39-69" aria-hidden="true" tabindex="-1"></a>  </span>
+<span id="cb39-70"><a href="#cb39-70" aria-hidden="true" tabindex="-1"></a>  <span class="co"># we always assume batch-first</span></span>
+<span id="cb39-71"><a href="#cb39-71" aria-hidden="true" tabindex="-1"></a>  <span class="at">forward =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb39-72"><a href="#cb39-72" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-73"><a href="#cb39-73" aria-hidden="true" tabindex="-1"></a>    batch_size <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">size</span>()[<span class="dv">1</span>]</span>
+<span id="cb39-74"><a href="#cb39-74" aria-hidden="true" tabindex="-1"></a>    seq_len <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">size</span>()[<span class="dv">2</span>]</span>
+<span id="cb39-75"><a href="#cb39-75" aria-hidden="true" tabindex="-1"></a>    height <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">size</span>()[<span class="dv">4</span>]</span>
+<span id="cb39-76"><a href="#cb39-76" aria-hidden="true" tabindex="-1"></a>    width <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">size</span>()[<span class="dv">5</span>]</span>
+<span id="cb39-77"><a href="#cb39-77" aria-hidden="true" tabindex="-1"></a>   </span>
+<span id="cb39-78"><a href="#cb39-78" aria-hidden="true" tabindex="-1"></a>    <span class="co"># initialize hidden states</span></span>
+<span id="cb39-79"><a href="#cb39-79" aria-hidden="true" tabindex="-1"></a>    init_hidden <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb39-80"><a href="#cb39-80" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>self<span class="sc">$</span>n_layers) {</span>
+<span id="cb39-81"><a href="#cb39-81" aria-hidden="true" tabindex="-1"></a>      init_hidden[[i]] <span class="ot">&lt;-</span> self<span class="sc">$</span>cell_list[[i]]<span class="sc">$</span><span class="fu">init_hidden</span>(batch_size, height, width)</span>
+<span id="cb39-82"><a href="#cb39-82" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb39-83"><a href="#cb39-83" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-84"><a href="#cb39-84" aria-hidden="true" tabindex="-1"></a>    <span class="co"># list containing the outputs, of length seq_len, for each layer</span></span>
+<span id="cb39-85"><a href="#cb39-85" aria-hidden="true" tabindex="-1"></a>    <span class="co"># this is the same as h, at each step in the sequence</span></span>
+<span id="cb39-86"><a href="#cb39-86" aria-hidden="true" tabindex="-1"></a>    layer_output_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb39-87"><a href="#cb39-87" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-88"><a href="#cb39-88" aria-hidden="true" tabindex="-1"></a>    <span class="co"># list containing the last states (h, c) for each layer</span></span>
+<span id="cb39-89"><a href="#cb39-89" aria-hidden="true" tabindex="-1"></a>    layer_state_list <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> self<span class="sc">$</span>n_layers)</span>
+<span id="cb39-90"><a href="#cb39-90" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-91"><a href="#cb39-91" aria-hidden="true" tabindex="-1"></a>    cur_layer_input <span class="ot">&lt;-</span> x</span>
+<span id="cb39-92"><a href="#cb39-92" aria-hidden="true" tabindex="-1"></a>    hidden_states <span class="ot">&lt;-</span> init_hidden</span>
+<span id="cb39-93"><a href="#cb39-93" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-94"><a href="#cb39-94" aria-hidden="true" tabindex="-1"></a>    <span class="co"># loop over layers</span></span>
+<span id="cb39-95"><a href="#cb39-95" aria-hidden="true" tabindex="-1"></a>    <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>self<span class="sc">$</span>n_layers) {</span>
+<span id="cb39-96"><a href="#cb39-96" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb39-97"><a href="#cb39-97" aria-hidden="true" tabindex="-1"></a>      <span class="co"># every layer's hidden state starts from 0 (non-stateful)</span></span>
+<span id="cb39-98"><a href="#cb39-98" aria-hidden="true" tabindex="-1"></a>      h_c <span class="ot">&lt;-</span> hidden_states[[i]]</span>
+<span id="cb39-99"><a href="#cb39-99" aria-hidden="true" tabindex="-1"></a>      h <span class="ot">&lt;-</span> h_c[[<span class="dv">1</span>]]</span>
+<span id="cb39-100"><a href="#cb39-100" aria-hidden="true" tabindex="-1"></a>      c <span class="ot">&lt;-</span> h_c[[<span class="dv">2</span>]]</span>
+<span id="cb39-101"><a href="#cb39-101" aria-hidden="true" tabindex="-1"></a>      <span class="co"># outputs, of length seq_len, for this layer</span></span>
+<span id="cb39-102"><a href="#cb39-102" aria-hidden="true" tabindex="-1"></a>      <span class="co"># equivalently, list of h states for each time step</span></span>
+<span id="cb39-103"><a href="#cb39-103" aria-hidden="true" tabindex="-1"></a>      output_sequence <span class="ot">&lt;-</span> <span class="fu">vector</span>(<span class="at">mode =</span> <span class="st">"list"</span>, <span class="at">length =</span> seq_len)</span>
+<span id="cb39-104"><a href="#cb39-104" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb39-105"><a href="#cb39-105" aria-hidden="true" tabindex="-1"></a>      <span class="co"># loop over timesteps</span></span>
+<span id="cb39-106"><a href="#cb39-106" aria-hidden="true" tabindex="-1"></a>      <span class="cf">for</span> (t <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>seq_len) {</span>
+<span id="cb39-107"><a href="#cb39-107" aria-hidden="true" tabindex="-1"></a>        h_c <span class="ot">&lt;-</span> self<span class="sc">$</span>cell_list[[i]](cur_layer_input[ , t, , , ], <span class="fu">list</span>(h, c))</span>
+<span id="cb39-108"><a href="#cb39-108" aria-hidden="true" tabindex="-1"></a>        h <span class="ot">&lt;-</span> h_c[[<span class="dv">1</span>]]</span>
+<span id="cb39-109"><a href="#cb39-109" aria-hidden="true" tabindex="-1"></a>        c <span class="ot">&lt;-</span> h_c[[<span class="dv">2</span>]]</span>
+<span id="cb39-110"><a href="#cb39-110" aria-hidden="true" tabindex="-1"></a>        <span class="co"># keep track of output (h) for every timestep</span></span>
+<span id="cb39-111"><a href="#cb39-111" aria-hidden="true" tabindex="-1"></a>        <span class="co"># h has dim (batch_size, hidden_size, height, width)</span></span>
+<span id="cb39-112"><a href="#cb39-112" aria-hidden="true" tabindex="-1"></a>        output_sequence[[t]] <span class="ot">&lt;-</span> h</span>
+<span id="cb39-113"><a href="#cb39-113" aria-hidden="true" tabindex="-1"></a>      }</span>
+<span id="cb39-114"><a href="#cb39-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb39-115"><a href="#cb39-115" aria-hidden="true" tabindex="-1"></a>      <span class="co"># stack hs for all timesteps over seq_len dimension</span></span>
+<span id="cb39-116"><a href="#cb39-116" aria-hidden="true" tabindex="-1"></a>      <span class="co"># stacked_outputs has dim (batch_size, seq_len, hidden_size, height, width)</span></span>
+<span id="cb39-117"><a href="#cb39-117" aria-hidden="true" tabindex="-1"></a>      <span class="co"># same as input to forward (x)</span></span>
+<span id="cb39-118"><a href="#cb39-118" aria-hidden="true" tabindex="-1"></a>      stacked_outputs <span class="ot">&lt;-</span> <span class="fu">torch_stack</span>(output_sequence, <span class="at">dim =</span> <span class="dv">2</span>)</span>
+<span id="cb39-119"><a href="#cb39-119" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb39-120"><a href="#cb39-120" aria-hidden="true" tabindex="-1"></a>      <span class="co"># pass the list of outputs (hs) to next layer</span></span>
+<span id="cb39-121"><a href="#cb39-121" aria-hidden="true" tabindex="-1"></a>      cur_layer_input <span class="ot">&lt;-</span> stacked_outputs</span>
+<span id="cb39-122"><a href="#cb39-122" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb39-123"><a href="#cb39-123" aria-hidden="true" tabindex="-1"></a>      <span class="co"># keep track of list of outputs or this layer</span></span>
+<span id="cb39-124"><a href="#cb39-124" aria-hidden="true" tabindex="-1"></a>      layer_output_list[[i]] <span class="ot">&lt;-</span> stacked_outputs</span>
+<span id="cb39-125"><a href="#cb39-125" aria-hidden="true" tabindex="-1"></a>      <span class="co"># keep track of last state for this layer</span></span>
+<span id="cb39-126"><a href="#cb39-126" aria-hidden="true" tabindex="-1"></a>      layer_state_list[[i]] <span class="ot">&lt;-</span> <span class="fu">list</span>(h, c)</span>
+<span id="cb39-127"><a href="#cb39-127" aria-hidden="true" tabindex="-1"></a>    }</span>
+<span id="cb39-128"><a href="#cb39-128" aria-hidden="true" tabindex="-1"></a> </span>
+<span id="cb39-129"><a href="#cb39-129" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(layer_output_list, layer_state_list)</span>
+<span id="cb39-130"><a href="#cb39-130" aria-hidden="true" tabindex="-1"></a>      </span>
+<span id="cb39-131"><a href="#cb39-131" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb39-132"><a href="#cb39-132" aria-hidden="true" tabindex="-1"></a>    </span>
+<span id="cb39-133"><a href="#cb39-133" aria-hidden="true" tabindex="-1"></a>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section class="quarto-appendix-contents" role="doc-bibliography"><h2 class="anchored quarto-appendix-heading">References</h2><div id="refs" class="references csl-bib-body hanging-indent" role="list">
+<div id="ref-dlenso" class="csl-entry" role="listitem">
+Ham, Yoo-Geun, Jeong-Hwan Kim, and Jing-Jia Luo. 2019. <span>“<span class="nocase">Deep learning for multi-year ENSO forecasts</span>”</span> 573 (7775): 568–72. <a href="https://doi.org/10.1038/s41586-019-1559-7">https://doi.org/10.1038/s41586-019-1559-7</a>.
+</div>
+</div></section><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>E.g., <a href="https://www.climatechange.ai/papers/neurips2019/40/paper.pdf">Forecasting El Niño with Convolutional and Recurrent Neural Networks</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>E.g., <a href="https://esgf-node.llnl.gov/projects/cmip5/">CMIP5</a>, <a href="http://www.umr-cnrm.fr/spip.php?article126&amp;lang=en">CNRM-CM5</a>, or <a href="https://southernocean.arizona.edu/content/hadgem2-es">HADGEM2-ES</a>.<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>This region extends over latitudes from 5° south to 5° north and longitudes from 120° west to 170° west.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>That classification is based on ONI (Oceanic Niño Index), a measure representing 3-month average anomalies in the Niño 3.4 Index.<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>This may also be an artifact produced by the software stack involved in reading the file.<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
