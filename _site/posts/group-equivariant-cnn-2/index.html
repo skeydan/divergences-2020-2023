@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-99.9.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sigrid Keydana">
+<meta name="dcterms.date" content="2023-03-27">
+<meta name="description" content="We code up a simple group-equivariant convolutional neural network (GCNN) that is equivariant to rotation. The world may be upside down, but the network will know.">
+
+<title>divergences - Implementing rotation equivariance: Group-equivariant CNN from scratch</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">divergences</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Implementing rotation equivariance: Group-equivariant CNN from scratch</h1>
+                  <div>
+        <div class="description">
+          <p>We code up a simple group-equivariant convolutional neural network (GCNN) that is equivariant to rotation. The world may be upside down, but the network will know.</p>
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">Deep Learning</div>
+                <div class="quarto-category">Geometric Deep Learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Sigrid Keydana </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">March 27, 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>Convolutional neural networks (CNNs) are great – they’re able to detect features in an image no matter where. Well, not exactly. They’re not indifferent to just any kind of movement. Shifting up or down, or left or right, is fine; rotating around an axis is not. That’s because of how convolution works: traverse by row, then traverse by column (or the other way round). If we want “more” (e.g., successful detection of an upside-down object), we need to extend convolution to an operation that is <em>rotation-equivariant</em>. An operation that is <em>equivariant</em> to some type of action will not only register the moved feature per se, but also, keep track of which concrete action made it appear where it is.</p>
+<p><strong>This is the second post in a series that introduces group-equivariant CNNs (GCNNs)</strong><em>.</em> The <a href="https://blogs.rstudio.com/ai/posts/2023-03-09-group-equivariant-cnn-1/">first</a> was a high-level introduction to why we’d want them, and how they work. There, we introduced the key player, the symmetry group, which specifies what kinds of transformations are to be treated equivariantly. If you haven’t, please take a look at that post first, since here I’ll make use of terminology and concepts it introduced.</p>
+<p>Today, we code a simple GCNN from scratch. Code and presentation tightly follow a <a href="https://github.com/phlippe/uvadlc_notebooks/blob/master/docs/tutorial_notebooks/DL2/Geometric_deep_learning/tutorial1_regular_group_convolutions.ipynb">notebook</a> provided as part of University of Amsterdam’s 2022 <a href="https://uvadl2c.github.io/">Deep Learning Course</a>. They can’t be thanked enough for making available such excellent learning materials.</p>
+<p>In what follows, my intent is to explain the general thinking, and how the resulting architecture is built up from smaller modules, each of which is assigned a clear purpose. For that reason, I won’t reproduce all the code here; instead, I’ll make use of the package <a href="https://github.com/skeydan/gcnn"><code>gcnn</code></a>. Its methods are heavily annotated; so to see some details, don’t hesitate to look at the code.</p>
+<p>As of today, <code>gcnn</code> implements one symmetry group: <span class="math inline">\(C_4\)</span>, the one that serves as a running example throughout post one. It is straightforwardly extensible, though, making use of class hierarchies throughout.</p>
+<section id="step-1-the-symmetry-group-c_4" class="level2">
+<h2 class="anchored" data-anchor-id="step-1-the-symmetry-group-c_4">Step 1: The symmetry group <span class="math inline">\(C_4\)</span></h2>
+<p>In coding a GCNN, the first thing we need to provide is an implementation of the symmetry group we’d like to use. Here, it is <span class="math inline">\(C_4\)</span>, the four-element group that rotates by 90 degrees.</p>
+<p>We can ask <code>gcnn</code> to create one for us, and inspect its elements.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co"># remotes::install_github("skeydan/gcnn")</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(gcnn)</span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(torch)</span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>C_4 <span class="ot">&lt;-</span> <span class="fu">CyclicGroup</span>(<span class="at">order =</span> <span class="dv">4</span>)</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>elems <span class="ot">&lt;-</span> C_4<span class="sc">$</span><span class="fu">elements</span>()</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>elems</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>torch_tensor
+ 0.0000
+ 1.5708
+ 3.1416
+ 4.7124
+[ CPUFloatType{4} ]</code></pre>
+<p>Elements are represented by their respective rotation angles: <span class="math inline">\(0\)</span>, <span class="math inline">\(\frac{\pi}{2}\)</span>, <span class="math inline">\(\pi\)</span>, and <span class="math inline">\(\frac{3 \pi}{2}\)</span>.</p>
+<p>Groups are aware of the identity, and know how to construct an element’s inverse:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb3"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>C_4<span class="sc">$</span>identity</span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>g1 <span class="ot">&lt;-</span> elems[<span class="dv">2</span>]</span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>C_4<span class="sc">$</span><span class="fu">inverse</span>(g1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>torch_tensor
+ 0
+[ CPUFloatType{1} ]
+
+torch_tensor
+4.71239
+[ CPUFloatType{} ]</code></pre>
+<p>Here, what we care about most is the group elements’ <em>action</em>. Implementation-wise, we need to distinguish between them acting on each other, and their action on the vector space <span class="math inline">\(\mathbb{R}^2\)</span>, where our input images live. The former part is the easy one: It may simply be implemented by adding angles. In fact, this is what <code>gcnn</code> does when we ask it to let <code>g1</code> act on <code>g2</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>g2 <span class="ot">&lt;-</span> elems[<span class="dv">3</span>]</span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a><span class="co"># in C_4$left_action_on_H(), H stands for the symmetry group</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>C_4<span class="sc">$</span><span class="fu">left_action_on_H</span>(<span class="fu">torch_tensor</span>(g1)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>), <span class="fu">torch_tensor</span>(g2)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>torch_tensor
+ 4.7124
+[ CPUFloatType{1,1} ]</code></pre>
+<p>What’s with the <code>unsqueeze()</code>s? Since <span class="math inline">\(C_4\)</span>’s ultimate <em>raison d’être</em> is to be part of a neural network, <code>left_action_on_H()</code> works with batches of elements, not scalar tensors.</p>
+<p>Things are a bit less straightforward where the group action on <span class="math inline">\(\mathbb{R}^2\)</span> is concerned. Here, we need the concept of a <a href="https://en.wikipedia.org/wiki/Group_representation">group representation</a>. This is an involved topic, which we won’t go into here. In our current context, it works about like this: We have an input signal, a tensor we’d like to operate on in some way. (That “some way” will be convolution, as we’ll see soon.) To render that operation group-equivariant, we first have the representation apply the <em>inverse</em> group action to the input. That accomplished, we go on with the operation as though nothing had happened.</p>
+<p>To give a concrete example, let’s say the operation is a measurement. Imagine a runner, standing at the foot of some mountain trail, ready to run up the climb. We’d like to record their height. One option we have is to take the measurement, then let them run up. Our measurement will be as valid up the mountain as it was down here. Alternatively, we might be polite and not make them wait. Once they’re up there, we ask them to come down, and when they’re back, we measure their height. The result is the same: Body height is equivariant (more than that: invariant, even) to the action of running up or down. (Of course, height is a pretty dull measure. But something more interesting, such as heart rate, would not have worked so well in this example.)</p>
+<p>Returning to the implementation, it turns out that group actions are encoded as matrices. There is one matrix for each group element. For <span class="math inline">\(C_4\)</span>, the so-called <em>standard</em> representation is a rotation matrix:</p>
+<p><span class="math display">\[
+\begin{bmatrix} \cos(\theta) &amp; -\sin(\theta) \\ \sin(\theta) &amp; \cos(\theta) \end{bmatrix}
+\]</span></p>
+<p>In <code>gcnn</code>, the function applying that matrix is <code>left_action_on_R2()</code>. Like its sibling, it is designed to work with batches (of group elements as well as <span class="math inline">\(\mathbb{R}^2\)</span> vectors). Technically, what it does is rotate the grid the image is defined on, and then, re-sample the image. To make this more concrete, that method’s code looks about as follows.</p>
+<p>Here is a goat.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>img_path <span class="ot">&lt;-</span> <span class="fu">system.file</span>(<span class="st">"imgs"</span>, <span class="st">"z.jpg"</span>, <span class="at">package =</span> <span class="st">"gcnn"</span>)</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a>img <span class="ot">&lt;-</span> torchvision<span class="sc">::</span><span class="fu">base_loader</span>(img_path) <span class="sc">|&gt;</span> torchvision<span class="sc">::</span><span class="fu">transform_to_tensor</span>()</span>
+<span id="cb7-3"><a href="#cb7-3" aria-hidden="true" tabindex="-1"></a>img<span class="sc">$</span><span class="fu">permute</span>(<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>)) <span class="sc">|&gt;</span> <span class="fu">as.array</span>() <span class="sc">|&gt;</span> <span class="fu">as.raster</span>() <span class="sc">|&gt;</span> <span class="fu">plot</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="z.jpg" class="quarto-discovered-preview-image img-fluid" alt="A goat sitting comfortably on a meadow." width="400"></p>
+</div>
+</div>
+<p>First, we call <code>C_4$left_action_on_R2()</code> to rotate the grid.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb8"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Grid shape is [2, 1024, 1024], for a 2d, 1024 x 1024 image.</span></span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a>img_grid_R2 <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">torch_stack</span>(torch<span class="sc">::</span><span class="fu">torch_meshgrid</span>(</span>
+<span id="cb8-3"><a href="#cb8-3" aria-hidden="true" tabindex="-1"></a>    <span class="fu">list</span>(</span>
+<span id="cb8-4"><a href="#cb8-4" aria-hidden="true" tabindex="-1"></a>      torch<span class="sc">::</span><span class="fu">torch_linspace</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="fu">dim</span>(img)[<span class="dv">2</span>]),</span>
+<span id="cb8-5"><a href="#cb8-5" aria-hidden="true" tabindex="-1"></a>      torch<span class="sc">::</span><span class="fu">torch_linspace</span>(<span class="sc">-</span><span class="dv">1</span>, <span class="dv">1</span>, <span class="fu">dim</span>(img)[<span class="dv">3</span>])</span>
+<span id="cb8-6"><a href="#cb8-6" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb8-7"><a href="#cb8-7" aria-hidden="true" tabindex="-1"></a>))</span>
+<span id="cb8-8"><a href="#cb8-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb8-9"><a href="#cb8-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Transform the image grid with the matrix representation of some group element.</span></span>
+<span id="cb8-10"><a href="#cb8-10" aria-hidden="true" tabindex="-1"></a>transformed_grid <span class="ot">&lt;-</span> C_4<span class="sc">$</span><span class="fu">left_action_on_R2</span>(C_4<span class="sc">$</span><span class="fu">inverse</span>(g1)<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>), img_grid_R2)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Second, we re-sample the image on the transformed grid. The goat now looks up to the sky.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>transformed_img <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">nnf_grid_sample</span>(</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  img<span class="sc">$</span><span class="fu">unsqueeze</span>(<span class="dv">1</span>), transformed_grid,</span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">align_corners =</span> <span class="cn">TRUE</span>, <span class="at">mode =</span> <span class="st">"bilinear"</span>, <span class="at">padding_mode =</span> <span class="st">"zeros"</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>transformed_img[<span class="dv">1</span>,..]<span class="sc">$</span><span class="fu">permute</span>(<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">1</span>)) <span class="sc">|&gt;</span> <span class="fu">as.array</span>() <span class="sc">|&gt;</span> <span class="fu">as.raster</span>() <span class="sc">|&gt;</span> <span class="fu">plot</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="z2.jpg" class="img-fluid" alt="Same goat, rotated up by 90 degrees." width="400"></p>
+</div>
+</div>
+</section>
+<section id="step-2-the-lifting-convolution" class="level2">
+<h2 class="anchored" data-anchor-id="step-2-the-lifting-convolution">Step 2: The lifting convolution</h2>
+<p>We want to make use of existing, efficient <code>torch</code> functionality as much as possible. Concretely, we want to use <code>nn_conv2d()</code>. What we need, though, is a convolution kernel that’s equivariant not just to translation, but also to the action of <span class="math inline">\(C_4\)</span>. This can be achieved by having one kernel for each possible rotation.</p>
+<p>Implementing that idea is exactly what <code>LiftingConvolution</code> does. The principle is the same as before: First, the grid is rotated, and then, the kernel (weight matrix) is re-sampled to the transformed grid.</p>
+<p>Why, though, call this a <em>lifting convolution</em>? The usual convolution kernel operates on <span class="math inline">\(\mathbb{R}^2\)</span>; while our extended version operates on combinations of <span class="math inline">\(\mathbb{R}^2\)</span> and <span class="math inline">\(C_4\)</span>. In math speak, it has been <em>lifted</em> to the <a href="https://en.wikipedia.org/wiki/Semidirect_product">semi-direct product</a> <span class="math inline">\(\mathbb{R}^2\rtimes C_4\)</span>.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb10"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" aria-hidden="true" tabindex="-1"></a>lifting_conv <span class="ot">&lt;-</span> <span class="fu">LiftingConvolution</span>(</span>
+<span id="cb10-2"><a href="#cb10-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">CyclicGroup</span>(<span class="at">order =</span> <span class="dv">4</span>),</span>
+<span id="cb10-3"><a href="#cb10-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb10-4"><a href="#cb10-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">in_channels =</span> <span class="dv">3</span>,</span>
+<span id="cb10-5"><a href="#cb10-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">out_channels =</span> <span class="dv">8</span></span>
+<span id="cb10-6"><a href="#cb10-6" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb10-7"><a href="#cb10-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">torch_randn</span>(<span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>, <span class="dv">32</span>, <span class="dv">32</span>))</span>
+<span id="cb10-9"><a href="#cb10-9" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">lifting_conv</span>(x)</span>
+<span id="cb10-10"><a href="#cb10-10" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>shape</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1]  2  8  4 28 28</code></pre>
+<p>Since, internally, <code>LiftingConvolution</code> uses an additional dimension to realize the product of translations and rotations, the output is not four-, but five-dimensional.</p>
+</section>
+<section id="step-3-group-convolutions" class="level2">
+<h2 class="anchored" data-anchor-id="step-3-group-convolutions">Step 3: Group convolutions</h2>
+<p>Now that we’re in “group-extended space”, we can chain a number of layers where both input and output are <em>group convolution</em> layers. For example:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb12"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" aria-hidden="true" tabindex="-1"></a>group_conv <span class="ot">&lt;-</span> <span class="fu">GroupConvolution</span>(</span>
+<span id="cb12-2"><a href="#cb12-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">group =</span> <span class="fu">CyclicGroup</span>(<span class="at">order =</span> <span class="dv">4</span>),</span>
+<span id="cb12-3"><a href="#cb12-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb12-4"><a href="#cb12-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">in_channels =</span> <span class="dv">8</span>,</span>
+<span id="cb12-5"><a href="#cb12-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">out_channels =</span> <span class="dv">16</span></span>
+<span id="cb12-6"><a href="#cb12-6" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb12-7"><a href="#cb12-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb12-8"><a href="#cb12-8" aria-hidden="true" tabindex="-1"></a>z <span class="ot">&lt;-</span> <span class="fu">group_conv</span>(y)</span>
+<span id="cb12-9"><a href="#cb12-9" aria-hidden="true" tabindex="-1"></a>z<span class="sc">$</span>shape</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1]  2 16  4 24 24</code></pre>
+<p>All that remains to be done is package this up. That’s what <code>gcnn::GroupEquivariantCNN()</code> does.</p>
+</section>
+<section id="step-4-group-equivariant-cnn" class="level2">
+<h2 class="anchored" data-anchor-id="step-4-group-equivariant-cnn">Step 4: Group-equivariant CNN</h2>
+<p>We can call <code>GroupEquivariantCNN()</code> like so.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb14"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb14-1"><a href="#cb14-1" aria-hidden="true" tabindex="-1"></a>cnn <span class="ot">&lt;-</span> <span class="fu">GroupEquivariantCNN</span>(</span>
+<span id="cb14-2"><a href="#cb14-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">CyclicGroup</span>(<span class="at">order =</span> <span class="dv">4</span>),</span>
+<span id="cb14-3"><a href="#cb14-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb14-4"><a href="#cb14-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">in_channels =</span> <span class="dv">1</span>,</span>
+<span id="cb14-5"><a href="#cb14-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">out_channels =</span> <span class="dv">1</span>,</span>
+<span id="cb14-6"><a href="#cb14-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">num_hidden =</span> <span class="dv">2</span>, <span class="co"># number of group convolutions</span></span>
+<span id="cb14-7"><a href="#cb14-7" aria-hidden="true" tabindex="-1"></a>    <span class="at">hidden_channels =</span> <span class="dv">16</span> <span class="co"># number of channels per group conv layer</span></span>
+<span id="cb14-8"><a href="#cb14-8" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb14-9"><a href="#cb14-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb14-10"><a href="#cb14-10" aria-hidden="true" tabindex="-1"></a>img <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">torch_randn</span>(<span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">1</span>, <span class="dv">32</span>, <span class="dv">32</span>))</span>
+<span id="cb14-11"><a href="#cb14-11" aria-hidden="true" tabindex="-1"></a><span class="fu">cnn</span>(img)<span class="sc">$</span>shape</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1] 4 1</code></pre>
+<p>At casual glance, this <code>GroupEquivariantCNN</code> looks like any old CNN … weren’t it for the <code>group</code> argument.</p>
+<p>Now, when we inspect its output, we see that the additional dimension is gone. That’s because after a sequence of group-to-group convolution layers, the module projects down to a representation that, for each batch item, retains channels only. It thus averages not just over locations – as we normally do – but over the group dimension as well. A final linear layer will then provide the requested classifier output (of dimension <code>out_channels</code>).</p>
+<p>And there we have the complete architecture. It is time for a real-world(<em>ish</em>) test.</p>
+</section>
+<section id="rotated-digits" class="level2">
+<h2 class="anchored" data-anchor-id="rotated-digits">Rotated digits!</h2>
+<p>The idea is to train two convnets, a “normal” CNN and a group-equivariant one, on the usual MNIST training set. Then, both are evaluated on an augmented test set where each image is randomly rotated by a continuous rotation between 0 and 360 degrees. We don’t expect <code>GroupEquivariantCNN</code> to be “perfect” – not if we equip with <span class="math inline">\(C_4\)</span> as a symmetry group. Strictly, with <span class="math inline">\(C_4\)</span>, equivariance extends over four positions only. But we do hope it will perform significantly better than the shift-equivariant-only standard architecture.</p>
+<p>First, we prepare the data; in particular, the augmented test set.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb16"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb16-1"><a href="#cb16-1" aria-hidden="true" tabindex="-1"></a>dir <span class="ot">&lt;-</span> <span class="st">"/tmp/mnist"</span></span>
+<span id="cb16-2"><a href="#cb16-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-3"><a href="#cb16-3" aria-hidden="true" tabindex="-1"></a>train_ds <span class="ot">&lt;-</span> torchvision<span class="sc">::</span><span class="fu">mnist_dataset</span>(</span>
+<span id="cb16-4"><a href="#cb16-4" aria-hidden="true" tabindex="-1"></a>  dir,</span>
+<span id="cb16-5"><a href="#cb16-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">download =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb16-6"><a href="#cb16-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">transform =</span> torchvision<span class="sc">::</span>transform_to_tensor</span>
+<span id="cb16-7"><a href="#cb16-7" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-8"><a href="#cb16-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-9"><a href="#cb16-9" aria-hidden="true" tabindex="-1"></a>test_ds <span class="ot">&lt;-</span> torchvision<span class="sc">::</span><span class="fu">mnist_dataset</span>(</span>
+<span id="cb16-10"><a href="#cb16-10" aria-hidden="true" tabindex="-1"></a>  dir,</span>
+<span id="cb16-11"><a href="#cb16-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">train =</span> <span class="cn">FALSE</span>,</span>
+<span id="cb16-12"><a href="#cb16-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">transform =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb16-13"><a href="#cb16-13" aria-hidden="true" tabindex="-1"></a>    x <span class="sc">|&gt;</span></span>
+<span id="cb16-14"><a href="#cb16-14" aria-hidden="true" tabindex="-1"></a>      torchvision<span class="sc">::</span><span class="fu">transform_to_tensor</span>() <span class="sc">|&gt;</span></span>
+<span id="cb16-15"><a href="#cb16-15" aria-hidden="true" tabindex="-1"></a>      torchvision<span class="sc">::</span><span class="fu">transform_random_rotation</span>(</span>
+<span id="cb16-16"><a href="#cb16-16" aria-hidden="true" tabindex="-1"></a>        <span class="at">degrees =</span> <span class="fu">c</span>(<span class="dv">0</span>, <span class="dv">360</span>),</span>
+<span id="cb16-17"><a href="#cb16-17" aria-hidden="true" tabindex="-1"></a>        <span class="at">resample =</span> <span class="dv">2</span>,</span>
+<span id="cb16-18"><a href="#cb16-18" aria-hidden="true" tabindex="-1"></a>        <span class="at">fill =</span> <span class="dv">0</span></span>
+<span id="cb16-19"><a href="#cb16-19" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb16-20"><a href="#cb16-20" aria-hidden="true" tabindex="-1"></a>  }</span>
+<span id="cb16-21"><a href="#cb16-21" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb16-22"><a href="#cb16-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb16-23"><a href="#cb16-23" aria-hidden="true" tabindex="-1"></a>train_dl <span class="ot">&lt;-</span> <span class="fu">dataloader</span>(train_ds, <span class="at">batch_size =</span> <span class="dv">128</span>, <span class="at">shuffle =</span> <span class="cn">TRUE</span>)</span>
+<span id="cb16-24"><a href="#cb16-24" aria-hidden="true" tabindex="-1"></a>test_dl <span class="ot">&lt;-</span> <span class="fu">dataloader</span>(test_ds, <span class="at">batch_size =</span> <span class="dv">128</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>How does it look?</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>test_images <span class="ot">&lt;-</span> coro<span class="sc">::</span><span class="fu">collect</span>(</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  test_dl, <span class="dv">1</span></span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>)[[<span class="dv">1</span>]]<span class="sc">$</span>x[<span class="dv">1</span><span class="sc">:</span><span class="dv">32</span>, <span class="dv">1</span>, , ] <span class="sc">|&gt;</span> <span class="fu">as.array</span>()</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a><span class="fu">par</span>(<span class="at">mfrow =</span> <span class="fu">c</span>(<span class="dv">4</span>, <span class="dv">8</span>), <span class="at">mar =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">4</span>), <span class="at">mai =</span> <span class="fu">rep</span>(<span class="dv">0</span>, <span class="dv">4</span>))</span>
+<span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a>test_images <span class="sc">|&gt;</span></span>
+<span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">array_tree</span>(<span class="dv">1</span>) <span class="sc">|&gt;</span></span>
+<span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">map</span>(as.raster) <span class="sc">|&gt;</span></span>
+<span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>  purrr<span class="sc">::</span><span class="fu">iwalk</span>(<span class="sc">~</span> {</span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    <span class="fu">plot</span>(.x)</span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  })</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<div class="cell">
+<div class="cell-output-display">
+<p><img src="rotated-mnist.png" class="img-fluid" alt="32 digits, rotated randomly." width="410"></p>
+</div>
+</div>
+<p>We first define and train a conventional CNN. It is as similar to <code>GroupEquivariantCNN()</code>, architecture-wise, as possible, and is given twice the number of hidden channels, so as to have comparable capacity overall.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a> default_cnn <span class="ot">&lt;-</span> <span class="fu">nn_module</span>(</span>
+<span id="cb18-2"><a href="#cb18-2" aria-hidden="true" tabindex="-1"></a>   <span class="st">"default_cnn"</span>,</span>
+<span id="cb18-3"><a href="#cb18-3" aria-hidden="true" tabindex="-1"></a>   <span class="at">initialize =</span> <span class="cf">function</span>(kernel_size, in_channels, out_channels, num_hidden, hidden_channels) {</span>
+<span id="cb18-4"><a href="#cb18-4" aria-hidden="true" tabindex="-1"></a>     self<span class="sc">$</span>conv1 <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">nn_conv2d</span>(in_channels, hidden_channels, kernel_size)</span>
+<span id="cb18-5"><a href="#cb18-5" aria-hidden="true" tabindex="-1"></a>     self<span class="sc">$</span>convs <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">nn_module_list</span>()</span>
+<span id="cb18-6"><a href="#cb18-6" aria-hidden="true" tabindex="-1"></a>     <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>num_hidden) {</span>
+<span id="cb18-7"><a href="#cb18-7" aria-hidden="true" tabindex="-1"></a>       self<span class="sc">$</span>convs<span class="sc">$</span><span class="fu">append</span>(torch<span class="sc">::</span><span class="fu">nn_conv2d</span>(hidden_channels, hidden_channels, kernel_size))</span>
+<span id="cb18-8"><a href="#cb18-8" aria-hidden="true" tabindex="-1"></a>     }</span>
+<span id="cb18-9"><a href="#cb18-9" aria-hidden="true" tabindex="-1"></a>     self<span class="sc">$</span>avg_pool <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">nn_adaptive_avg_pool2d</span>(<span class="dv">1</span>)</span>
+<span id="cb18-10"><a href="#cb18-10" aria-hidden="true" tabindex="-1"></a>     self<span class="sc">$</span>final_linear <span class="ot">&lt;-</span> torch<span class="sc">::</span><span class="fu">nn_linear</span>(hidden_channels, out_channels)</span>
+<span id="cb18-11"><a href="#cb18-11" aria-hidden="true" tabindex="-1"></a>   },</span>
+<span id="cb18-12"><a href="#cb18-12" aria-hidden="true" tabindex="-1"></a>   <span class="at">forward =</span> <span class="cf">function</span>(x) {</span>
+<span id="cb18-13"><a href="#cb18-13" aria-hidden="true" tabindex="-1"></a>     x <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span></span>
+<span id="cb18-14"><a href="#cb18-14" aria-hidden="true" tabindex="-1"></a>       self<span class="sc">$</span><span class="fu">conv1</span>() <span class="sc">|&gt;</span></span>
+<span id="cb18-15"><a href="#cb18-15" aria-hidden="true" tabindex="-1"></a>       (\(.) torch<span class="sc">::</span><span class="fu">nnf_layer_norm</span>(., .<span class="sc">$</span>shape[<span class="dv">2</span><span class="sc">:</span><span class="dv">4</span>]))() <span class="sc">|&gt;</span></span>
+<span id="cb18-16"><a href="#cb18-16" aria-hidden="true" tabindex="-1"></a>       torch<span class="sc">::</span><span class="fu">nnf_relu</span>()</span>
+<span id="cb18-17"><a href="#cb18-17" aria-hidden="true" tabindex="-1"></a>     <span class="cf">for</span> (i <span class="cf">in</span> <span class="dv">1</span><span class="sc">:</span>(<span class="fu">length</span>(self<span class="sc">$</span>convs))) {</span>
+<span id="cb18-18"><a href="#cb18-18" aria-hidden="true" tabindex="-1"></a>       x <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span></span>
+<span id="cb18-19"><a href="#cb18-19" aria-hidden="true" tabindex="-1"></a>         self<span class="sc">$</span>convs[[i]]() <span class="sc">|&gt;</span></span>
+<span id="cb18-20"><a href="#cb18-20" aria-hidden="true" tabindex="-1"></a>         (\(.) torch<span class="sc">::</span><span class="fu">nnf_layer_norm</span>(., .<span class="sc">$</span>shape[<span class="dv">2</span><span class="sc">:</span><span class="dv">4</span>]))() <span class="sc">|&gt;</span></span>
+<span id="cb18-21"><a href="#cb18-21" aria-hidden="true" tabindex="-1"></a>         torch<span class="sc">::</span><span class="fu">nnf_relu</span>()</span>
+<span id="cb18-22"><a href="#cb18-22" aria-hidden="true" tabindex="-1"></a>     }</span>
+<span id="cb18-23"><a href="#cb18-23" aria-hidden="true" tabindex="-1"></a>     x <span class="ot">&lt;-</span> x <span class="sc">|&gt;</span></span>
+<span id="cb18-24"><a href="#cb18-24" aria-hidden="true" tabindex="-1"></a>       self<span class="sc">$</span><span class="fu">avg_pool</span>() <span class="sc">|&gt;</span></span>
+<span id="cb18-25"><a href="#cb18-25" aria-hidden="true" tabindex="-1"></a>       torch<span class="sc">::</span><span class="fu">torch_squeeze</span>() <span class="sc">|&gt;</span></span>
+<span id="cb18-26"><a href="#cb18-26" aria-hidden="true" tabindex="-1"></a>       self<span class="sc">$</span><span class="fu">final_linear</span>()</span>
+<span id="cb18-27"><a href="#cb18-27" aria-hidden="true" tabindex="-1"></a>     x</span>
+<span id="cb18-28"><a href="#cb18-28" aria-hidden="true" tabindex="-1"></a>   }</span>
+<span id="cb18-29"><a href="#cb18-29" aria-hidden="true" tabindex="-1"></a> )</span>
+<span id="cb18-30"><a href="#cb18-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb18-31"><a href="#cb18-31" aria-hidden="true" tabindex="-1"></a>fitted <span class="ot">&lt;-</span> default_cnn <span class="sc">|&gt;</span></span>
+<span id="cb18-32"><a href="#cb18-32" aria-hidden="true" tabindex="-1"></a>    luz<span class="sc">::</span><span class="fu">setup</span>(</span>
+<span id="cb18-33"><a href="#cb18-33" aria-hidden="true" tabindex="-1"></a>      <span class="at">loss =</span> torch<span class="sc">::</span><span class="fu">nn_cross_entropy_loss</span>(),</span>
+<span id="cb18-34"><a href="#cb18-34" aria-hidden="true" tabindex="-1"></a>      <span class="at">optimizer =</span> torch<span class="sc">::</span>optim_adam,</span>
+<span id="cb18-35"><a href="#cb18-35" aria-hidden="true" tabindex="-1"></a>      <span class="at">metrics =</span> <span class="fu">list</span>(</span>
+<span id="cb18-36"><a href="#cb18-36" aria-hidden="true" tabindex="-1"></a>        luz<span class="sc">::</span><span class="fu">luz_metric_accuracy</span>()</span>
+<span id="cb18-37"><a href="#cb18-37" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb18-38"><a href="#cb18-38" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">|&gt;</span></span>
+<span id="cb18-39"><a href="#cb18-39" aria-hidden="true" tabindex="-1"></a>    luz<span class="sc">::</span><span class="fu">set_hparams</span>(</span>
+<span id="cb18-40"><a href="#cb18-40" aria-hidden="true" tabindex="-1"></a>      <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb18-41"><a href="#cb18-41" aria-hidden="true" tabindex="-1"></a>      <span class="at">in_channels =</span> <span class="dv">1</span>,</span>
+<span id="cb18-42"><a href="#cb18-42" aria-hidden="true" tabindex="-1"></a>      <span class="at">out_channels =</span> <span class="dv">10</span>,</span>
+<span id="cb18-43"><a href="#cb18-43" aria-hidden="true" tabindex="-1"></a>      <span class="at">num_hidden =</span> <span class="dv">4</span>,</span>
+<span id="cb18-44"><a href="#cb18-44" aria-hidden="true" tabindex="-1"></a>      <span class="at">hidden_channels =</span> <span class="dv">32</span></span>
+<span id="cb18-45"><a href="#cb18-45" aria-hidden="true" tabindex="-1"></a>    ) <span class="sc">%&gt;%</span></span>
+<span id="cb18-46"><a href="#cb18-46" aria-hidden="true" tabindex="-1"></a>    luz<span class="sc">::</span><span class="fu">set_opt_hparams</span>(<span class="at">lr =</span> <span class="fl">1e-2</span>, <span class="at">weight_decay =</span> <span class="fl">1e-4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb18-47"><a href="#cb18-47" aria-hidden="true" tabindex="-1"></a>    luz<span class="sc">::</span><span class="fu">fit</span>(train_dl, <span class="at">epochs =</span> <span class="dv">10</span>, <span class="at">valid_data =</span> test_dl) </span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>Train metrics: Loss: 0.0498 - Acc: 0.9843
+Valid metrics: Loss: 3.2445 - Acc: 0.4479</code></pre>
+<p>Unsurprisingly, accuracy on the test set is not that great.</p>
+<p>Next, we train the group-equivariant version.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>fitted <span class="ot">&lt;-</span> GroupEquivariantCNN <span class="sc">|&gt;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  luz<span class="sc">::</span><span class="fu">setup</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">loss =</span> torch<span class="sc">::</span><span class="fu">nn_cross_entropy_loss</span>(),</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">optimizer =</span> torch<span class="sc">::</span>optim_adam,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">metrics =</span> <span class="fu">list</span>(</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>      luz<span class="sc">::</span><span class="fu">luz_metric_accuracy</span>()</span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb20-9"><a href="#cb20-9" aria-hidden="true" tabindex="-1"></a>  luz<span class="sc">::</span><span class="fu">set_hparams</span>(</span>
+<span id="cb20-10"><a href="#cb20-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">group =</span> <span class="fu">CyclicGroup</span>(<span class="at">order =</span> <span class="dv">4</span>),</span>
+<span id="cb20-11"><a href="#cb20-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">kernel_size =</span> <span class="dv">5</span>,</span>
+<span id="cb20-12"><a href="#cb20-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">in_channels =</span> <span class="dv">1</span>,</span>
+<span id="cb20-13"><a href="#cb20-13" aria-hidden="true" tabindex="-1"></a>    <span class="at">out_channels =</span> <span class="dv">10</span>,</span>
+<span id="cb20-14"><a href="#cb20-14" aria-hidden="true" tabindex="-1"></a>    <span class="at">num_hidden =</span> <span class="dv">4</span>,</span>
+<span id="cb20-15"><a href="#cb20-15" aria-hidden="true" tabindex="-1"></a>    <span class="at">hidden_channels =</span> <span class="dv">16</span></span>
+<span id="cb20-16"><a href="#cb20-16" aria-hidden="true" tabindex="-1"></a>  ) <span class="sc">|&gt;</span></span>
+<span id="cb20-17"><a href="#cb20-17" aria-hidden="true" tabindex="-1"></a>  luz<span class="sc">::</span><span class="fu">set_opt_hparams</span>(<span class="at">lr =</span> <span class="fl">1e-2</span>, <span class="at">weight_decay =</span> <span class="fl">1e-4</span>) <span class="sc">|&gt;</span></span>
+<span id="cb20-18"><a href="#cb20-18" aria-hidden="true" tabindex="-1"></a>  luz<span class="sc">::</span><span class="fu">fit</span>(train_dl, <span class="at">epochs =</span> <span class="dv">10</span>, <span class="at">valid_data =</span> test_dl)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>Train metrics: Loss: 0.1102 - Acc: 0.9667
+Valid metrics: Loss: 0.4969 - Acc: 0.8549</code></pre>
+<p>For the group-equivariant CNN, accuracies on test and training sets are a lot closer. That is a nice result! Let’s wrap up today’s exploit resuming a thought from the first, more high-level post.</p>
+</section>
+<section id="a-challenge" class="level2">
+<h2 class="anchored" data-anchor-id="a-challenge">A challenge</h2>
+<p>Going back to the augmented test set, or rather, the samples of digits displayed, we notice a problem. In row two, column four, there is a digit that “under normal circumstances”, should be a 9, but, most probably, is an upside-down 6. (To a human, what suggests this is the squiggle-like thing that seems to be found more often with sixes than with nines.) However, you could ask: does this <em>have</em> to be a problem? Maybe the network just needs to learn the subtleties, the kinds of things a human would spot?</p>
+<p>The way I view it, it all depends on the context: What really should be accomplished, and how an application is going to be used. With digits on a letter, I’d see no reason why a single digit should appear upside-down; accordingly, full rotation equivariance would be counter-productive. In a nutshell, we arrive at the same canonical imperative advocates of fair, just machine learning keep reminding us of:</p>
+<blockquote class="blockquote">
+<p>Always think of the way an application is going to be used!</p>
+</blockquote>
+<p>In our case, though, there is another aspect to this, a technical one. <code>gcnn::GroupEquivariantCNN()</code> is a simple wrapper, in that its layers all make use of the same symmetry group. In principle, there is no need to do this. With more coding effort, different groups can be used depending on a layer’s position in the feature-detection hierarchy.</p>
+<p>Here, let me finally tell you why I chose the goat picture. The goat is seen through a red-and-white fence, a pattern – slightly rotated, due to the viewing angle – made up of squares (or edges, if you like). Now, for such a fence, types of rotation equivariance such as that encoded by <span class="math inline">\(C_4\)</span> make a lot of sense. The goat itself, though, we’d rather not have look up to the sky, the way I illustrated <span class="math inline">\(C_4\)</span> action before. Thus, what we’d do in a real-world image-classification task is use rather flexible layers at the bottom, and increasingly restrained layers at the top of the hierarchy.</p>
+<p>Thanks for reading!</p>
+<p>Photo by <a href="https://unsplash.com/@marjan_blan?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Marjan Blan | <span class="citation" data-cites="marjanblan">@marjanblan</span></a> on <a href="https://unsplash.com/photos/kvOnuo8OvN4?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Unsplash</a></p>
+
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>

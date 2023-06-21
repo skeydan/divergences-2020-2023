@@ -4,7 +4,7 @@ description: >
   This post introduces deep learning on graphs by mapping its central concept - message passing - to minimal usage patterns of PyTorch Geometric's foundation-laying MessagePassing class. Exploring those patterns, we gain some basic, very concrete insights into how graph DL works.
 author: Sigrid Keydana
 date: 2022-11-22
-categories: [Technical, Deep Learning]
+categories: [Deep Learning]
 image: net.jpg
 ---
 
@@ -93,20 +93,22 @@ data.edge_index
 data.y
 ```
 
-    tensor([[ 1.,  1.],
-            [ 2.,  2.],
-            [ 3.,  3.],
-            [11., 11.],
-            [12., 12.]])
-            
-    tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
-            [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])
-            
-    tensor([[0.],
-            [0.],
-            [0.],
-            [1.],
-            [1.]])
+```         
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [11., 11.],
+        [12., 12.]])
+        
+tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
+        [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])
+        
+tensor([[0.],
+        [0.],
+        [0.],
+        [1.],
+        [1.]])
+```
 
 For our upcoming experiments, it's more helpful, though, to visualize the graph:
 
@@ -153,11 +155,13 @@ out = module(data.x, data.edge_index)
 out
 ```
 
-    tensor([[ 5.,  5.],
-            [ 4.,  4.],
-            [26., 26.],
-            [15., 15.],
-            [14., 14.]])
+```         
+tensor([[ 5.,  5.],
+        [ 4.,  4.],
+        [26., 26.],
+        [15., 15.],
+        [14., 14.]])
+```
 
 Evidently, we just had to start the process -- but what process, exactly? From what we know about the three stages of message passing, an essential question is what nodes do with the information that flows over the edges. Our first experiment, then, is to inspect the incoming messages.
 
@@ -181,31 +185,35 @@ print("result is:")
 out
 ```
 
-    in message, x_j is
-    tensor([[ 1.,  1.],
-            [ 2.,  2.],
-            [ 1.,  1.],
-            [ 3.,  3.],
-            [ 2.,  2.],
-            [ 3.,  3.],
-            [ 3.,  3.],
-            [11., 11.],
-            [ 3.,  3.],
-            [12., 12.],
-            [11., 11.],
-            [12., 12.]])
-            
-    result is:
-    tensor([[ 5.,  5.],
-            [ 4.,  4.],
-            [26., 26.],
-            [15., 15.],
-            [14., 14.]])
+```         
+in message, x_j is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])
+        
+result is:
+tensor([[ 5.,  5.],
+        [ 4.,  4.],
+        [26., 26.],
+        [15., 15.],
+        [14., 14.]])
+```
 
 Let me spell this out. In `data.edge_index`, repeated here for convenience:
 
-    tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
-            [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])
+```         
+tensor([[0, 1, 0, 2, 1, 2, 2, 3, 2, 4, 3, 4],
+        [1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3]])
+```
 
 the first pair denotes the edge from node `0` (that had features `(1, 1)`) to node `1`. This information is found in `x_j`'s first row. Then the second row holds the information flowing in the opposite direction, namely, the features associated with node `1`. And so on.
 
@@ -223,18 +231,20 @@ we can index `into data.x` to pick up what will be the *incoming* features for e
 data.x[data.edge_index[0]]
 ```
 
-    tensor([[ 1.,  1.],
-            [ 2.,  2.],
-            [ 1.,  1.],
-            [ 3.,  3.],
-            [ 2.,  2.],
-            [ 3.,  3.],
-            [ 3.,  3.],
-            [11., 11.],
-            [ 3.,  3.],
-            [12., 12.],
-            [11., 11.],
-            [12., 12.]])
+```         
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])
+```
 
 Now, what does this tell us? Node `0`, for example, received messages from nodes `1` and `2`: `(2, 2)` and `(3, 3)`, respectively. We know that the default aggregation mode is `add`; and so, would expect an outcome of `(5, 5)`. Indeed, this is the new embedding for node `0`.
 
@@ -264,15 +274,17 @@ out
 
 ```
 
-    in forward, augmented edge index now has shape:
-    torch.Size([2, 17])
+```         
+in forward, augmented edge index now has shape:
+torch.Size([2, 17])
 
-    result is:
-    tensor([[ 6.,  6.],
-            [ 6.,  6.],
-            [29., 29.],
-            [26., 26.],
-            [26., 26.]])
+result is:
+tensor([[ 6.,  6.],
+        [ 6.,  6.],
+        [29., 29.],
+        [26., 26.],
+        [26., 26.]])
+```
 
 As expected, the neighborhood summary at each node now includes a contribution from each node itself.
 
@@ -315,29 +327,31 @@ out
 
 ```
 
-    in aggregate, inputs is
-    tensor([[ 1.,  1.],
-            [ 2.,  2.],
-            [ 1.,  1.],
-            [ 3.,  3.],
-            [ 2.,  2.],
-            [ 3.,  3.],
-            [ 3.,  3.],
-            [11., 11.],
-            [ 3.,  3.],
-            [12., 12.],
-            [11., 11.],
-            [12., 12.]])
-            
-    in aggregate, index is
-    tensor([1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3])
+```         
+in aggregate, inputs is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 1.,  1.],
+        [ 3.,  3.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [ 3.,  3.],
+        [11., 11.],
+        [ 3.,  3.],
+        [12., 12.],
+        [11., 11.],
+        [12., 12.]])
+        
+in aggregate, index is
+tensor([1, 0, 2, 0, 2, 1, 3, 2, 4, 2, 4, 3])
 
-    result is:
-    tensor([[ -5.,  -5.],
-            [ -4.,  -4.],
-            [-26., -26.],
-            [-15., -15.],
-            [-14., -14.]])
+result is:
+tensor([[ -5.,  -5.],
+        [ -4.,  -4.],
+        [-26., -26.],
+        [-15., -15.],
+        [-14., -14.]])
+```
 
 In `aggregate()`, we have two types of tensors to work with. One, `inputs`, holds what was returned from `message()`. In our case, this is identical to `x_j`, since we didn't make any modifications to the default behavior. The second, `index`, holds the recipe for where in the aggregation those features should go. Here, the very first tuple, `(1, 1)`, will contribute to the summary for node `1`; the second, `(2, 2)`, to that for node `0` -- and so on. By the way, just like `x_j` (in a single-layer, single-pass setup) is "just" `data.x[data.edge_index[0]]`, that `index` is "just" `data.edge_index[1]`. Meaning, this is the list of target nodes connected to the edges in question.
 
@@ -370,24 +384,26 @@ print("result is:")
 out
 ```
 
-    in update, inputs is
-    tensor([[ 6.,  6.],
-            [ 6.,  6.],
-            [29., 29.],
-            [26., 26.],
-            [26., 26.]])
-    in update, x is
-    tensor([[ 1.,  1.],
-            [ 2.,  2.],
-            [ 3.,  3.],
-            [11., 11.],
-            [12., 12.]])
-    result is:
-    tensor([[ 3.5000,  3.5000],
-            [ 4.0000,  4.0000],
-            [16.0000, 16.0000],
-            [18.5000, 18.5000],
-            [19.0000, 19.0000]])
+```         
+in update, inputs is
+tensor([[ 6.,  6.],
+        [ 6.,  6.],
+        [29., 29.],
+        [26., 26.],
+        [26., 26.]])
+in update, x is
+tensor([[ 1.,  1.],
+        [ 2.,  2.],
+        [ 3.,  3.],
+        [11., 11.],
+        [12., 12.]])
+result is:
+tensor([[ 3.5000,  3.5000],
+        [ 4.0000,  4.0000],
+        [16.0000, 16.0000],
+        [18.5000, 18.5000],
+        [19.0000, 19.0000]])
+```
 
 In `update()`, we have access to both the final message aggregate (`inputs`) and the nodes' prior states (`x`). Here, I'm just averaging those two.
 
@@ -424,12 +440,14 @@ print("result is:")
 out
 ```
 
-    result is:
-    tensor([[-0.8724, -0.4407],
-            [-0.9056, -0.4623],
-            [-2.0229, -1.1240],
-            [-1.8691, -1.0867],
-            [-1.9024, -1.1082]], grad_fn=<DivBackward0>)
+```         
+result is:
+tensor([[-0.8724, -0.4407],
+        [-0.9056, -0.4623],
+        [-2.0229, -1.1240],
+        [-1.8691, -1.0867],
+        [-1.9024, -1.1082]], grad_fn=<DivBackward0>)
+```
 
 Finally, we can apply network modules in both places, as exemplified next.
 
@@ -462,12 +480,14 @@ out
 
 ```
 
-    result is:
-    tensor([[ 0.0573, -0.6988],
-            [ 0.0358, -0.6894],
-            [-0.1730, -0.6450],
-            [-0.5855, -0.4171],
-            [-0.5890, -0.4141]], grad_fn=<AddmmBackward0>)
+```         
+result is:
+tensor([[ 0.0573, -0.6988],
+        [ 0.0358, -0.6894],
+        [-0.1730, -0.6450],
+        [-0.5855, -0.4171],
+        [-0.5890, -0.4141]], grad_fn=<AddmmBackward0>)
+```
 
 At this point, I hope you'll feel comfortable to play around, subclassing the `MessagePassing` base class. Also, if now you consult the above-mentioned documentation page ([Creating message passing networks](https://pytorch-geometric.readthedocs.io/en/latest/notes/create_gnn.html)), you'll be able to map the example implementations (dedicated to popular GNN layer types) to where they "hook into" the message passing process.
 
@@ -513,11 +533,13 @@ preds = torch.sigmoid(out)
 preds
 ```
 
-    tensor([[0.6502],
-            [0.6532],
-            [0.7027],
-            [0.7145],
-            [0.7165]], grad_fn=<SigmoidBackward0>)
+```         
+tensor([[0.6502],
+        [0.6532],
+        [0.7027],
+        [0.7145],
+        [0.7165]], grad_fn=<SigmoidBackward0>)
+```
 
 And that's it for this time. Stay tuned for examples of how graph models are applied in the sciences, as well as illustrations of bleeding-edge developments in [Geometric Deep Learning](https://blogs.rstudio.com/ai/posts/2021-08-26-geometric-deep-learning/), the principles-based, heuristics-transcending approach to neural networks.
 

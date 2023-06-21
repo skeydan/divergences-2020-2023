@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-99.9.9">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+<meta name="author" content="Sigrid Keydana">
+<meta name="dcterms.date" content="2023-05-09">
+<meta name="description" content="Escnn, built on PyTorch, is a library that, in the spirit of Geometric Deep Learning, provides a high-level interface to designing and training group-equivariant neural networks. This post introduces important mathematical concepts, the library’s key actors, and essential library use.">
+
+<title>divergences - Group-equivariant neural networks with escnn</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { display: inline-block; line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../../">
+<script src="../../site_libs/quarto-html/quarto.js"></script>
+<script src="../../site_libs/quarto-html/popper.min.js"></script>
+<script src="../../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 20,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit"
+  }
+}</script>
+
+  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+  <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-chtml-full.js" type="text/javascript"></script>
+
+<link rel="stylesheet" href="../../styles.css">
+</head>
+
+<body class="nav-fixed fullcontent">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg navbar-dark ">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container">
+    <a class="navbar-brand" href="../../index.html">
+    <span class="navbar-title">divergences</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item">
+    <a class="nav-link" href="../../about.html" rel="" target="">
+ <span class="menu-text">About</span></a>
+  </li>  
+</ul>
+            <div class="quarto-navbar-tools">
+</div>
+          </div> <!-- /navcollapse -->
+      </div> <!-- /container-fluid -->
+    </nav>
+</header>
+<!-- content -->
+<header id="title-block-header" class="quarto-title-block default page-columns page-full">
+  <div class="quarto-title-banner page-columns page-full">
+    <div class="quarto-title column-body">
+      <h1 class="title">Group-equivariant neural networks with escnn</h1>
+                  <div>
+        <div class="description">
+          <p>Escnn, built on PyTorch, is a library that, in the spirit of Geometric Deep Learning, provides a high-level interface to designing and training group-equivariant neural networks. This post introduces important mathematical concepts, the library’s key actors, and essential library use.</p>
+        </div>
+      </div>
+                          <div class="quarto-categories">
+                <div class="quarto-category">Deep Learning</div>
+                <div class="quarto-category">Geometric Deep Learning</div>
+              </div>
+                  </div>
+  </div>
+    
+  
+  <div class="quarto-title-meta">
+
+      <div>
+      <div class="quarto-title-meta-heading">Author</div>
+      <div class="quarto-title-meta-contents">
+               <p>Sigrid Keydana </p>
+            </div>
+    </div>
+      
+      <div>
+      <div class="quarto-title-meta-heading">Published</div>
+      <div class="quarto-title-meta-contents">
+        <p class="date">May 9, 2023</p>
+      </div>
+    </div>
+    
+      
+    </div>
+    
+  
+  </header><div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+<!-- margin-sidebar -->
+    
+<!-- main -->
+<main class="content quarto-banner-title-block" id="quarto-document-content">
+
+
+
+
+<p>Today, we resume our exploration of group equivariance. This is the third post in the series. The <a href="https://blogs.rstudio.com/ai/posts/2023-03-09-group-equivariant-cnn-1/">first</a> was a high-level introduction: what this is all about; how equivariance is operationalized; and why it is of relevance to many deep-learning applications. The <a href="https://blogs.rstudio.com/ai/posts/2023-03-27-group-equivariant-cnn-2/">second</a> sought to concretize the key ideas by developing a group-equivariant CNN from scratch. That being instructive, but too tedious for practical use, today we look at a carefully designed, highly-performant <a href="https://github.com/QUVA-Lab/escnn">library</a> that hides the technicalities and enables a convenient workflow.</p>
+<p>First though, let me again set the context. In physics, an all-important concept is that of symmetry<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>, a symmetry being present whenever some quantity is being conserved. But we don’t even need to look to science. Examples arise in daily life, and – otherwise why write about it - in the tasks we apply deep learning to.</p>
+<p>In daily life: Think about speech – me stating “it is cold”, for example. Formally, or denotation-wise, the sentence will have the same meaning now as in five hours. (Connotations, on the other hand, can and will probably be different!). This is a form of translation symmetry, translation in time.</p>
+<p>In deep learning: Take image classification. For the usual convolutional neural network, a cat in the center of the image is just that, a cat; a cat on the bottom is, too. But one sleeping, comfortably curled like a half-moon “open to the right”, will not be “the same” as one in a mirrored position. Of course, we can train the network to treat both as equivalent by providing training images of cats in both positions, but that is not a scaleable approach. Instead, we’d like to make the network aware of these symmetries, so they are automatically preserved throughout the network architecture.</p>
+<section id="purpose-and-scope-of-this-post" class="level2">
+<h2 class="anchored" data-anchor-id="purpose-and-scope-of-this-post">Purpose and scope of this post</h2>
+<p>Here, I introduce <a href="https://github.com/QUVA-Lab/escnn"><code>escnn</code></a>, a PyTorch extension that implements forms of group equivariance for CNNs operating on the plane or in (3d) space. The library is used in various, amply illustrated research papers; it is appropriately documented; and it comes with introductory notebooks both relating the math and exercising the code. Why, then, not just refer to the <a href="https://github.com/QUVA-Lab/escnn/blob/master/examples/introduction.ipynb">first notebook</a>, and immediately start using it for some experiment?</p>
+<p>In fact, this post should – as quite a few texts I’ve written – be regarded as an introduction to an introduction. To me, this topic seems anything but easy, for various reasons. Of course, there’s the math. But as so often in machine learning, you don’t need to go to great depths to be able to apply an algorithm correctly. So if not the math itself, what generates the difficulty? For me, it’s two things.</p>
+<p>First, to map my understanding of the mathematical concepts to the terminology used in the library, and from there, to correct use and application. Expressed schematically: We have a concept A, which figures (among other concepts) in technical term (or object class) B. What does my understanding of A tell me about how object class B is to be used correctly? More importantly: How do I use it to best attain my goal C? This first difficulty I’ll address in a very pragmatic way. I’ll neither dwell on mathematical details, nor try to establish the links between A, B, and C in detail. Instead, I’ll present the characters<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> in this story by asking what they’re good for.</p>
+<p>Second – and this will be of relevance to just a subset of readers – the topic of group equivariance, particularly as applied to image processing, is one where visualizations can be of tremendous help. The quaternity<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> of conceptual explanation, math, code, and visualization can, together, produce an understanding of emergent-seeming quality… if, and only if, all of these explanation modes “work” for you. (Or if, in an area, a mode that does not wouldn’t contribute that much anyway.) Here, it so happens that from what I saw, several papers have excellent visualizations<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a>, and the same holds for some lecture slides and accompanying notebooks<a href="#fn5" class="footnote-ref" id="fnref5" role="doc-noteref"><sup>5</sup></a>. But for those among us with limited spatial-imagination capabilities – e.g., people with <a href="https://en.wikipedia.org/wiki/Aphantasia">Aphantasia</a> – these illustrations, intended to help, can be very hard to make sense of themselves. If you’re not one of these, I totally recommend checking out the resources linked in the above footnotes. This text, though, will try to make the best possible use of verbal explanation to introduce the concepts involved, the library, and how to use it.</p>
+<p>That said, let’s start with the software.</p>
+</section>
+<section id="using-escnn" class="level2">
+<h2 class="anchored" data-anchor-id="using-escnn">Using <em>escnn</em></h2>
+<p><code>Escnn</code> depends on PyTorch. Yes, PyTorch, not <code>torch</code>; unfortunately, the library hasn’t been ported to R yet.<a href="#fn6" class="footnote-ref" id="fnref6" role="doc-noteref"><sup>6</sup></a> For now, thus, we’ll employ <a href="https://rstudio.github.io/reticulate/"><code>reticulate</code></a><a href="#fn7" class="footnote-ref" id="fnref7" role="doc-noteref"><sup>7</sup></a> to access the Python objects directly.</p>
+<p>The way I’m doing this is install <code>escnn</code> in a virtual environment, with PyTorch version 1.13.1. As of this writing, Python 3.11 is not yet supported by one of <code>escnn</code>’s dependencies; the virtual environment thus builds on Python 3.10. As to the library itself, I am using the development version from GitHub, running <code>pip install git+https://github.com/QUVA-Lab/escnn</code>.</p>
+<p>Once you’re ready, issue</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(reticulate)</span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="co"># Verify correct environment is used.</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co"># Different ways exist to ensure this; I've found most convenient to configure this on</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a><span class="co"># a per-project basis in RStudio's project file (&lt;myproj&gt;.Rproj)</span></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">py_config</span>()</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a><span class="co"># bind to required libraries and get handles to their namespaces</span></span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>torch <span class="ot">&lt;-</span> <span class="fu">import</span>(<span class="st">"torch"</span>)</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>escnn <span class="ot">&lt;-</span> <span class="fu">import</span>(<span class="st">"escnn"</span>)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p><code>Escnn</code> loaded, let me introduce its main objects and their roles in the play.</p>
+</section>
+<section id="spaces-groups-and-representations-escnngspaces" class="level2">
+<h2 class="anchored" data-anchor-id="spaces-groups-and-representations-escnngspaces">Spaces, groups, and representations: <code>escnn$gspaces</code></h2>
+<p>We start by peeking into <code>gspaces</code>, one of the two sub-modules we are going to make direct use of.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb2"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>gspaces <span class="ot">&lt;-</span> escnn<span class="sc">$</span>gspaces</span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="fu">py_list_attributes</span>(gspaces) <span class="sc">|&gt;</span> (\(vec) <span class="fu">grep</span>(<span class="st">"On"</span>, vec, <span class="at">value =</span> <span class="cn">TRUE</span>))() <span class="sc">|&gt;</span> <span class="fu">sort</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1] "conicalOnR3" "cylindricalOnR3" "dihedralOnR3" "flip2dOnR2" "flipRot2dOnR2" "flipRot3dOnR3"
+[7] "fullCylindricalOnR3" "fullIcoOnR3" "fullOctaOnR3" "icoOnR3" "invOnR3" "mirOnR3 "octaOnR3"
+[14] "rot2dOnR2" "rot2dOnR3" "rot3dOnR3" "trivialOnR2" "trivialOnR3"    </code></pre>
+<p>The methods I’ve listed instantiate a <code>gspace</code>. If you look closely, you see that they’re all composed of two strings, joined by “On”. In all instances, the second part is either <code>R2</code> or <code>R3</code>. These two are the available base spaces – <span class="math inline">\(\mathbb{R}^2\)</span> and <span class="math inline">\(\mathbb{R}^3\)</span> – an input signal can live in. Signals can, thus, be images, made up of pixels, or three-dimensional volumes, composed of voxels. The first part refers to the group you’d like to use. Choosing a group means choosing the symmetries to be respected. For example, <code>rot2dOnR2()</code> implies equivariance as to rotations, <code>flip2dOnR2()</code> guarantees the same for mirroring actions, and <code>flipRot2dOnR2()</code> subsumes both.</p>
+<p>Let’s define such a <code>gspace</code>. Here we ask for rotation equivariance on the Euclidean plane, making use of the same cyclic group – <span class="math inline">\(C_4\)</span> – we developed in our <a href="https://blogs.rstudio.com/ai/posts/2023-03-27-group-equivariant-cnn-2/">from-scratch implementation</a>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb4"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>r2_act <span class="ot">&lt;-</span> gspaces<span class="sc">$</span><span class="fu">rot2dOnR2</span>(<span class="at">N =</span> 4L)</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>r2_act<span class="sc">$</span>fibergroup</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>In this post, I’ll stay with that setup, but we could as well pick another rotation angle – <code>N = 8</code>, say, resulting in eight equivariant positions separated by forty-five degrees. Alternatively, we might want <em>any</em> rotated position to be accounted for. The group to request then would be <a href="https://en.wikipedia.org/wiki/Orthogonal_group#Special_orthogonal_group">SO(2)</a>, called the <em>special orthogonal group,</em> of continuous, distance- and orientation-preserving transformations on the Euclidean plane:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>(gspaces<span class="sc">$</span><span class="fu">rot2dOnR2</span>(<span class="at">N =</span> <span class="sc">-</span>1L))<span class="sc">$</span>fibergroup</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>SO(2)</code></pre>
+<p>Going back to <span class="math inline">\(C_4\)</span>, let’s investigate its <a href="https://en.wikipedia.org/wiki/Group_representation"><em>representations</em></a>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb7"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>r2_act<span class="sc">$</span>representations</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>$irrep_0
+C4|[irrep_0]:1
+
+$irrep_1
+C4|[irrep_1]:2
+
+$irrep_2
+C4|[irrep_2]:1
+
+$regular
+C4|[regular]:4</code></pre>
+<p>A representation, in our current context <em>and</em> very roughly speaking, is a way to encode a group action as a matrix, meeting certain conditions. In <code>escnn</code>, representations are central, and we’ll see how in the next section.</p>
+<p>First, let’s inspect the above output. Four representations are available, three of which share an important property: they’re all <a href="https://en.wikipedia.org/wiki/Irreducible_representation">irreducible</a>. On <span class="math inline">\(C_4\)</span>, any non-irreducible representation <a href="https://en.wikipedia.org/wiki/Maschke%27s_theorem">can be decomposed</a> into into irreducible ones. These irreducible representations are what <code>escnn</code> works with internally. Of those three, the most interesting one is the second. To see its action, we need to choose a group element. How about counterclockwise rotation by ninety degrees:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>elem_1 <span class="ot">&lt;-</span> r2_act<span class="sc">$</span>fibergroup<span class="sc">$</span><span class="fu">element</span>(1L)</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>elem_1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>1[2pi/4]</code></pre>
+<p>Associated to this group element is the following matrix:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb11"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" aria-hidden="true" tabindex="-1"></a>r2_act<span class="sc">$</span>representations[[<span class="dv">2</span>]](elem_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>             [,1]          [,2]
+[1,] 6.123234e-17 -1.000000e+00
+[2,] 1.000000e+00  6.123234e-17</code></pre>
+<p>This is the so-called standard representation,</p>
+<p><span class="math display">\[
+\begin{bmatrix} \cos(\theta) &amp; -\sin(\theta) \\ \sin(\theta) &amp; \cos(\theta) \end{bmatrix}
+\]</span></p>
+<p>, evaluated at <span class="math inline">\(\theta = \pi/2\)</span>. (It is called the standard representation because it directly comes from how the group is defined (namely, a rotation by <span class="math inline">\(\theta\)</span> in the plane).</p>
+<p>The other interesting representation to point out is the fourth: the only one that’s not irreducible.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a>r2_act<span class="sc">$</span>representations[[<span class="dv">4</span>]](elem_1)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1,]  5.551115e-17 -5.551115e-17 -8.326673e-17  1.000000e+00
+[2,]  1.000000e+00  5.551115e-17 -5.551115e-17 -8.326673e-17
+[3,]  5.551115e-17  1.000000e+00  5.551115e-17 -5.551115e-17
+[4,] -5.551115e-17  5.551115e-17  1.000000e+00  5.551115e-17</code></pre>
+<p>This is the so-called <em>regular</em> representation. The regular representation acts via permutation of group elements, or, to be more precise, of the basis vectors that make up the matrix. Obviously, this is only possible for finite groups like <span class="math inline">\(C_n\)</span>, since otherwise there’d be an infinite amount of basis vectors to permute.</p>
+<p>To better see the action encoded in the above matrix, we clean up a bit:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="fu">round</span>(r2_act<span class="sc">$</span>representations[[<span class="dv">4</span>]](elem_1))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>    [,1] [,2] [,3] [,4]
+[1,]    0    0    0    1
+[2,]    1    0    0    0
+[3,]    0    1    0    0
+[4,]    0    0    1    0</code></pre>
+<p>This is a step-one shift to the right of the identity matrix. The identity matrix, mapped to element 0, is the non-action; this matrix instead maps the zeroth action to the first, the first to the second, the second to the third, and the third to the first.</p>
+<p>We’ll see the regular representation used in a neural network soon. Internally – but that need not concern the user – <em>escnn</em> works with its decomposition into irreducible matrices. Here, that’s just the bunch of irreducible representations we saw above, numbered from one to three.</p>
+<p>Having looked at how groups and representations figure in <code>escnn</code>, it is time we approach the task of building a network.</p>
+</section>
+<section id="representations-for-real-escnnnnfieldtype" class="level2">
+<h2 class="anchored" data-anchor-id="representations-for-real-escnnnnfieldtype">Representations, for real: <code>escnn$nn$FieldType</code></h2>
+<p>So far, we’ve characterized the input space (<span class="math inline">\(\mathbb{R}^2\)</span>), and specified the group action. But once we enter the network, we’re not in the plane anymore, but in a space that has been extended by the group action. Rephrasing, the group action produces <em>feature vector fields</em> that assign a feature vector to each spatial position in the image.</p>
+<p>Now we have those feature vectors, we need to specify how they transform under the group action. This is encoded in an <code>escnn$nn$FieldType</code> . Informally, we could say that a field type is the <em>data type</em> of a feature space. In defining it, we indicate two things: the base space, a <code>gspace</code>, and the representation type(s) to be used.</p>
+<p>In an equivariant neural network, field types play a role similar to that of channels in a convnet. Each layer has an input and an output field type. Assuming we’re working with grey-scale images, we can specify the input type for the first layer like this:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>nn <span class="ot">&lt;-</span> escnn<span class="sc">$</span>nn</span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>feat_type_in <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>trivial_repr))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>The <em>trivial</em> representation is used to indicate that, while the image as a whole will be rotated, the pixel values themselves should be left alone. If this were an RGB image, instead of <code>r2_act$trivial_repr</code> we’d pass a list of three such objects.</p>
+<p>So we’ve characterized the input. At any later stage, though, the situation will have changed. We will have performed convolution once for every group element. Moving on to the next layer, these feature fields will have to transform equivariantly, as well. This can be achieved by requesting the <em>regular</em> representation for an output field type:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb18"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb18-1"><a href="#cb18-1" aria-hidden="true" tabindex="-1"></a>feat_type_out <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>regular_repr))</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Then, a convolutional layer may be defined like so:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb19"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb19-1"><a href="#cb19-1" aria-hidden="true" tabindex="-1"></a>conv <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_in, feat_type_out, <span class="at">kernel_size =</span> 3L)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+</section>
+<section id="group-equivariant-convolution" class="level2">
+<h2 class="anchored" data-anchor-id="group-equivariant-convolution">Group-equivariant convolution</h2>
+<p>What does such a convolution do to its input? Just like, in a usual convnet, capacity can be increased by having more channels, an equivariant convolution can pass on several feature vector fields, possibly of different type (assuming that makes sense). In the code snippet below, we request a list of three, all behaving according to the regular representation.</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>feat_type_in <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>trivial_repr))</span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>feat_type_out <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  r2_act,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(r2_act<span class="sc">$</span>regular_repr, r2_act<span class="sc">$</span>regular_repr, r2_act<span class="sc">$</span>regular_repr)</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>conv <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_in, feat_type_out, <span class="at">kernel_size =</span> 3L)</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>We then perform convolution on a batch of images, made aware of their “data type” by wrapping them in <code>feat_type_in</code>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb21"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb21-1"><a href="#cb21-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> torch<span class="sc">$</span><span class="fu">rand</span>(2L, 1L, 32L, 32L)</span>
+<span id="cb21-2"><a href="#cb21-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">feat_type_in</span>(x)</span>
+<span id="cb21-3"><a href="#cb21-3" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">conv</span>(x)</span>
+<span id="cb21-4"><a href="#cb21-4" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>shape <span class="sc">|&gt;</span> <span class="fu">unlist</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1]  2  12 30 30</code></pre>
+<p>The output has twelve “channels”, this being the product of group cardinality – four distinguished positions – and number of feature vector fields (three).</p>
+<p>If we choose the simplest possible, approximately, test case, we can verify that such a convolution is equivariant by direct inspection. Here’s my setup:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb23"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb23-1"><a href="#cb23-1" aria-hidden="true" tabindex="-1"></a>feat_type_in <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>trivial_repr))</span>
+<span id="cb23-2"><a href="#cb23-2" aria-hidden="true" tabindex="-1"></a>feat_type_out <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>regular_repr))</span>
+<span id="cb23-3"><a href="#cb23-3" aria-hidden="true" tabindex="-1"></a>conv <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_in, feat_type_out, <span class="at">kernel_size =</span> 3L)</span>
+<span id="cb23-4"><a href="#cb23-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb23-5"><a href="#cb23-5" aria-hidden="true" tabindex="-1"></a>torch<span class="sc">$</span>nn<span class="sc">$</span>init<span class="sc">$</span><span class="fu">constant_</span>(conv<span class="sc">$</span>weights, <span class="fl">1.</span>)</span>
+<span id="cb23-6"><a href="#cb23-6" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> torch<span class="sc">$</span><span class="fu">vander</span>(torch<span class="sc">$</span><span class="fu">arange</span>(<span class="dv">0</span>,<span class="dv">4</span>))<span class="sc">$</span><span class="fu">view</span>(<span class="fu">tuple</span>(1L, 1L, 4L, 4L)) <span class="sc">|&gt;</span> <span class="fu">feat_type_in</span>()</span>
+<span id="cb23-7"><a href="#cb23-7" aria-hidden="true" tabindex="-1"></a>x</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>g_tensor([[[[ 0.,  0.,  0.,  1.],
+            [ 1.,  1.,  1.,  1.],
+            [ 8.,  4.,  2.,  1.],
+            [27.,  9.,  3.,  1.]]]], [C4_on_R2[(None, 4)]: {irrep_0 (x1)}(1)])</code></pre>
+<p>Inspection could be performed using any group element. I’ll pick rotation by <span class="math inline">\(\pi/2\)</span>:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb25"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb25-1"><a href="#cb25-1" aria-hidden="true" tabindex="-1"></a>all <span class="ot">&lt;-</span> <span class="fu">iterate</span>(r2_act<span class="sc">$</span>testing_elements)</span>
+<span id="cb25-2"><a href="#cb25-2" aria-hidden="true" tabindex="-1"></a>g1 <span class="ot">&lt;-</span> all[[<span class="dv">2</span>]]</span>
+<span id="cb25-3"><a href="#cb25-3" aria-hidden="true" tabindex="-1"></a>g1</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>Just for fun, let’s see how we can – literally – come whole circle by letting this element act on the input tensor four times:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a>all <span class="ot">&lt;-</span> <span class="fu">iterate</span>(r2_act<span class="sc">$</span>testing_elements)</span>
+<span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>g1 <span class="ot">&lt;-</span> all[[<span class="dv">2</span>]]</span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>x1 <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>x1<span class="sc">$</span>tensor</span>
+<span id="cb26-6"><a href="#cb26-6" aria-hidden="true" tabindex="-1"></a>x2 <span class="ot">&lt;-</span> x1<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb26-7"><a href="#cb26-7" aria-hidden="true" tabindex="-1"></a>x2<span class="sc">$</span>tensor</span>
+<span id="cb26-8"><a href="#cb26-8" aria-hidden="true" tabindex="-1"></a>x3 <span class="ot">&lt;-</span> x2<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb26-9"><a href="#cb26-9" aria-hidden="true" tabindex="-1"></a>x3<span class="sc">$</span>tensor</span>
+<span id="cb26-10"><a href="#cb26-10" aria-hidden="true" tabindex="-1"></a>x4 <span class="ot">&lt;-</span> x3<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb26-11"><a href="#cb26-11" aria-hidden="true" tabindex="-1"></a>x4<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[[[ 1.,  1.,  1.,  1.],
+          [ 0.,  1.,  2.,  3.],
+          [ 0.,  1.,  4.,  9.],
+          [ 0.,  1.,  8., 27.]]]])
+          
+tensor([[[[ 1.,  3.,  9., 27.],
+          [ 1.,  2.,  4.,  8.],
+          [ 1.,  1.,  1.,  1.],
+          [ 1.,  0.,  0.,  0.]]]])
+          
+tensor([[[[27.,  8.,  1.,  0.],
+          [ 9.,  4.,  1.,  0.],
+          [ 3.,  2.,  1.,  0.],
+          [ 1.,  1.,  1.,  1.]]]])
+          
+tensor([[[[ 0.,  0.,  0.,  1.],
+          [ 1.,  1.,  1.,  1.],
+          [ 8.,  4.,  2.,  1.],
+          [27.,  9.,  3.,  1.]]]])</code></pre>
+<p>You see that at the end, we are back at the original “image”.</p>
+<p>Now, for equivariance. We could first apply a rotation, then convolve.</p>
+<p>Rotate:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a>x_rot <span class="ot">&lt;-</span> x<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb28-2"><a href="#cb28-2" aria-hidden="true" tabindex="-1"></a>x_rot<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<p>This is the first in the above list of four tensors.</p>
+<p>Convolve:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb29"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb29-1"><a href="#cb29-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">conv</span>(x_rot)</span>
+<span id="cb29-2"><a href="#cb29-2" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[[[ 1.1955,  1.7110],
+          [-0.5166,  1.0665]],
+
+         [[-0.0905,  2.6568],
+          [-0.3743,  2.8144]],
+
+         [[ 5.0640, 11.7395],
+          [ 8.6488, 31.7169]],
+
+         [[ 2.3499,  1.7937],
+          [ 4.5065,  5.9689]]]], grad_fn=&lt;ConvolutionBackward0&gt;)</code></pre>
+<p>Alternatively, we can do the convolution first, then rotate its output.</p>
+<p>Convolve:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a>y_conv <span class="ot">&lt;-</span> <span class="fu">conv</span>(x)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>y_conv<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[[[-0.3743, -0.0905],
+          [ 2.8144,  2.6568]],
+
+         [[ 8.6488,  5.0640],
+          [31.7169, 11.7395]],
+
+         [[ 4.5065,  2.3499],
+          [ 5.9689,  1.7937]],
+
+         [[-0.5166,  1.1955],
+          [ 1.0665,  1.7110]]]], grad_fn=&lt;ConvolutionBackward0&gt;)</code></pre>
+<p>Rotate:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb33"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb33-1"><a href="#cb33-1" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> y_conv<span class="sc">$</span><span class="fu">transform</span>(g1)</span>
+<span id="cb33-2"><a href="#cb33-2" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[[[ 1.1955,  1.7110],
+          [-0.5166,  1.0665]],
+
+         [[-0.0905,  2.6568],
+          [-0.3743,  2.8144]],
+
+         [[ 5.0640, 11.7395],
+          [ 8.6488, 31.7169]],
+
+         [[ 2.3499,  1.7937],
+          [ 4.5065,  5.9689]]]])</code></pre>
+<p>Indeed, final results are the same.</p>
+<p>At this point, we know how to employ group-equivariant convolutions. The final step is to compose the network.</p>
+</section>
+<section id="a-group-equivariant-neural-network" class="level2">
+<h2 class="anchored" data-anchor-id="a-group-equivariant-neural-network">A group-equivariant neural network</h2>
+<p>Basically, we have two questions to answer. The first concerns the non-linearities; the second is how to get from extended space to the data type of the target.</p>
+<p>First, about the non-linearities. This is a potentially intricate topic, but as long as we stay with point-wise operations (such as that performed by ReLU) equivariance is given intrinsically.</p>
+<p>In consequence, we can already assemble a model:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb35"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb35-1"><a href="#cb35-1" aria-hidden="true" tabindex="-1"></a>feat_type_in <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>trivial_repr))</span>
+<span id="cb35-2"><a href="#cb35-2" aria-hidden="true" tabindex="-1"></a>feat_type_hid <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(</span>
+<span id="cb35-3"><a href="#cb35-3" aria-hidden="true" tabindex="-1"></a>  r2_act,</span>
+<span id="cb35-4"><a href="#cb35-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">list</span>(r2_act<span class="sc">$</span>regular_repr, r2_act<span class="sc">$</span>regular_repr, r2_act<span class="sc">$</span>regular_repr, r2_act<span class="sc">$</span>regular_repr)</span>
+<span id="cb35-5"><a href="#cb35-5" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb35-6"><a href="#cb35-6" aria-hidden="true" tabindex="-1"></a>feat_type_out <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">FieldType</span>(r2_act, <span class="fu">list</span>(r2_act<span class="sc">$</span>regular_repr))</span>
+<span id="cb35-7"><a href="#cb35-7" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-8"><a href="#cb35-8" aria-hidden="true" tabindex="-1"></a>model <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">SequentialModule</span>(</span>
+<span id="cb35-9"><a href="#cb35-9" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_in, feat_type_hid, <span class="at">kernel_size =</span> 3L),</span>
+<span id="cb35-10"><a href="#cb35-10" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">InnerBatchNorm</span>(feat_type_hid),</span>
+<span id="cb35-11"><a href="#cb35-11" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">ReLU</span>(feat_type_hid),</span>
+<span id="cb35-12"><a href="#cb35-12" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_hid, feat_type_hid, <span class="at">kernel_size =</span> 3L),</span>
+<span id="cb35-13"><a href="#cb35-13" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">InnerBatchNorm</span>(feat_type_hid),</span>
+<span id="cb35-14"><a href="#cb35-14" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">ReLU</span>(feat_type_hid),</span>
+<span id="cb35-15"><a href="#cb35-15" aria-hidden="true" tabindex="-1"></a>  nn<span class="sc">$</span><span class="fu">R2Conv</span>(feat_type_hid, feat_type_out, <span class="at">kernel_size =</span> 3L)</span>
+<span id="cb35-16"><a href="#cb35-16" aria-hidden="true" tabindex="-1"></a>)<span class="sc">$</span><span class="fu">eval</span>()</span>
+<span id="cb35-17"><a href="#cb35-17" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb35-18"><a href="#cb35-18" aria-hidden="true" tabindex="-1"></a>model</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>SequentialModule(
+  (0): R2Conv([C4_on_R2[(None, 4)]:
+       {irrep_0 (x1)}(1)], [C4_on_R2[(None, 4)]: {regular (x4)}(16)], kernel_size=3, stride=1)
+  (1): InnerBatchNorm([C4_on_R2[(None, 4)]:
+       {regular (x4)}(16)], eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (2): ReLU(inplace=False, type=[C4_on_R2[(None, 4)]: {regular (x4)}(16)])
+  (3): R2Conv([C4_on_R2[(None, 4)]:
+       {regular (x4)}(16)], [C4_on_R2[(None, 4)]: {regular (x4)}(16)], kernel_size=3, stride=1)
+  (4): InnerBatchNorm([C4_on_R2[(None, 4)]:
+       {regular (x4)}(16)], eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  (5): ReLU(inplace=False, type=[C4_on_R2[(None, 4)]: {regular (x4)}(16)])
+  (6): R2Conv([C4_on_R2[(None, 4)]:
+       {regular (x4)}(16)], [C4_on_R2[(None, 4)]: {regular (x1)}(4)], kernel_size=3, stride=1)
+)</code></pre>
+<p>Calling this model on some input image, we get:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb37"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb37-1"><a href="#cb37-1" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> torch<span class="sc">$</span><span class="fu">randn</span>(1L, 1L, 17L, 17L)</span>
+<span id="cb37-2"><a href="#cb37-2" aria-hidden="true" tabindex="-1"></a>x <span class="ot">&lt;-</span> <span class="fu">feat_type_in</span>(x)</span>
+<span id="cb37-3"><a href="#cb37-3" aria-hidden="true" tabindex="-1"></a><span class="fu">model</span>(x)<span class="sc">$</span>shape <span class="sc">|&gt;</span> <span class="fu">unlist</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1]  1  4 11 11</code></pre>
+<p>What we do now depends on the task. Since we didn’t preserve the original resolution anyway – as would have been required for, say, segmentation – we probably want one feature vector per image. That we can achieve by spatial pooling:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb39"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb39-1"><a href="#cb39-1" aria-hidden="true" tabindex="-1"></a>avgpool <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">PointwiseAvgPool</span>(feat_type_out, 11L)</span>
+<span id="cb39-2"><a href="#cb39-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">avgpool</span>(<span class="fu">model</span>(x))</span>
+<span id="cb39-3"><a href="#cb39-3" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>shape <span class="sc">|&gt;</span> <span class="fu">unlist</span>()</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>[1] 1 4 1 1</code></pre>
+<p>We still have four “channels”, corresponding to four group elements. This feature vector is (approximately) translation-<em>in</em>variant, but rotation-<em>equi</em>variant, in the sense expressed by the choice of group. Often, the final output will be expected to be group-invariant as well as translation-invariant (as in image classification). If that’s the case, we pool over group elements, as well:</p>
+<div class="cell">
+<div class="sourceCode cell-code" id="cb41"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb41-1"><a href="#cb41-1" aria-hidden="true" tabindex="-1"></a>invariant_map <span class="ot">&lt;-</span> nn<span class="sc">$</span><span class="fu">GroupPooling</span>(feat_type_out)</span>
+<span id="cb41-2"><a href="#cb41-2" aria-hidden="true" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">invariant_map</span>(<span class="fu">avgpool</span>(<span class="fu">model</span>(x)))</span>
+<span id="cb41-3"><a href="#cb41-3" aria-hidden="true" tabindex="-1"></a>y<span class="sc">$</span>tensor</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+</div>
+<pre><code>tensor([[[[-0.0293]]]], grad_fn=&lt;CopySlices&gt;)</code></pre>
+<p>We end up with an architecture that, from the outside, will look like a standard convnet, while on the inside, all convolutions have been performed in a rotation-equivariant way. Training and evaluation then are no different from the usual procedure.</p>
+</section>
+<section id="where-to-from-here" class="level2">
+<h2 class="anchored" data-anchor-id="where-to-from-here">Where to from here</h2>
+<p>This “introduction to an introduction” has been the attempt to draw a high-level map of the terrain, so you can decide if this is useful to you. If it’s not just useful, but interesting theory-wise as well, you’ll find lots of excellent materials linked from the <a href="https://github.com/QUVA-Lab/escnn">README</a>. The way I see it, though, this post already should enable you to actually experiment with different setups.</p>
+<p>One such experiment, that would be of high interest to me, might investigate how well different types and degrees of equivariance actually work for a given task and dataset. Overall, a reasonable assumption is that, the higher “up” we go in the feature hierarchy, the less equivariance we require. For edges and corners, taken by themselves, full rotation equivariance seems desirable, as does equivariance to reflection; for higher-level features, we might want to successively restrict allowed operations, maybe ending up with equivariance to mirroring merely. Experiments could be designed to compare different ways, and levels, of restriction.<a href="#fn8" class="footnote-ref" id="fnref8" role="doc-noteref"><sup>8</sup></a></p>
+<p>Thanks for reading!</p>
+<p>Photo by <a href="https://unsplash.com/@astrovol?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Volodymyr Tokar</a> on <a href="https://unsplash.com/photos/hwcWBLq1jO8?utm_source=unsplash&amp;utm_medium=referral&amp;utm_content=creditCopyText">Unsplash</a></p>
+
+
+</section>
+
+
+<div id="quarto-appendix" class="default"><section id="footnotes" class="footnotes footnotes-end-of-document" role="doc-endnotes"><h2 class="anchored quarto-appendix-heading">Footnotes</h2>
+
+<ol>
+<li id="fn1"><p>This is nicely explained in, for example, Jakob Schwichtenberg’s <a href="http://physicsfromsymmetry.com/">Physics from symmetry</a>.<a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2"><p>If you have some background on representations: No, not <em>those</em> characters …<a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3"><p>Yes, that word <a href="https://www.merriam-webster.com/dictionary/quaternity">exists</a>, although I must admit I didn’t know before typing it into a search engine.<a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4"><p>One paper particularly stood out to me: <span class="citation" data-cites="abs-2106-06020">[@abs-2106-06020]</span>.<a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn5"><p>Directly pertinent to today’s topic, thinking of the materials produced for University of Amsterdam’s <a href="https://uvagedl.github.io/">course on group-equivariant deep learning</a>.<a href="#fnref5" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn6"><p>If, after reading this post, you feel that maybe <em>you</em> would be interested in porting it – I can definitely say I think that’s a great idea!<a href="#fnref6" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn7"><p>If you’re new to <code>reticulate</code>, please consult its excellent documentation on topics like <a href="https://rstudio.github.io/reticulate/articles/calling_python.html">calling Python from R</a>, <a href="https://rstudio.github.io/reticulate/articles/versions.html">determining the Python version used</a>, <a href="https://rstudio.github.io/reticulate/articles/python_packages.html">installing Python packages</a>, as well as an outstanding <a href="https://rstudio.github.io/reticulate/articles/python_primer.html">introduction to Python for R users</a>.<a href="#fnref7" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn8"><p>See the documentation for <a href="https://quva-lab.github.io/escnn/api/escnn.nn.html?highlight=restrictionmodule#escnn.nn.RestrictionModule"><code>escnn$nn$RestrictionModule</code></a> for how to do this.<a href="#fnref8" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section></div></main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button', {
+    text: function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+    }
+  });
+  clipboard.on('success', function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  });
+  function tippyHover(el, contentFn) {
+    const config = {
+      allowHTML: true,
+      content: contentFn,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start'
+    };
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      return note.innerHTML;
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script>
+</div> <!-- /content -->
+
+
+
+</body></html>
