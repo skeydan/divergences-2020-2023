@@ -5,7 +5,7 @@ date: "2023-04-05"
 categories: [Books, Deep Learning]
 image: book.jpg
 description: >
-  Much as we humans like to believe, consciousness is not a neocortex thing, a matter of analysis and meta-analysis. Instead -- says Mark Solms, in his 2021 *The Hidden Spring: A Journey to the Source of Consciousness* -- instead, consciousness is all about feeling. A claim that, if we take it seriously (and I don't see why we shouldn't) has far-ranging consequences.
+  Please allow us to introduce Deep Learning and Scientific Computing with R torch. Released in e-book format today, and available freely online, this book starts out by introducing torch basics. From there, it moves on to various deep-learning use cases. Finally, it shows how to use torch for more general topics, such as matrix computations and the Fourier Transform.
 ---
 
 First things first: Where can you get it? As of today, you can download the [e-book](https://www.taylorfrancis.com/books/mono/10.1201/9781003275923/deep-learning-scientific-computing-torch-sigrid-keydana) or order a [print copy](https://www.routledge.com/Deep-Learning-and-Scientific-Computing-with-R-torch/Keydana/p/book/9781032231396) from the publisher, CRC Press; the free online edition is [here](https://skeydan.github.io/Deep-Learning-and-Scientific-Computing-with-R-torch/). There is, to my knowledge, no problem to perusing the online version -- besides one: It doesn't have the squirrel that's on the book cover.
